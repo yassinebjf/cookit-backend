@@ -5,18 +5,21 @@ import OpenAI from "openai";
 const app = express();
 const PORT = process.env.PORT || 3333;
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// ✅ INIT OPENAI (STEP 2)
+// ✅ INIT OPENAI (clé via Render → Environment)
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Route test
 app.get("/", (req, res) => {
   res.send("🍳 Cookit backend is running");
 });
 
+// 🔥 ROUTE RECETTE AVEC IA
 app.post("/recipe", async (req, res) => {
   try {
     const { ingredients } = req.body;
@@ -27,8 +30,6 @@ app.post("/recipe", async (req, res) => {
         message: "No ingredients provided",
       });
     }
-
-
 
     const prompt = `
 Tu es un chef cuisinier.
@@ -45,19 +46,18 @@ Génère UNE recette en JSON STRICT avec EXACTEMENT ce format :
   "cuisine": "string"
 }
 
-⚠️ Ne renvoie RIEN d'autre que du JSON valide.
+Ne renvoie RIEN d'autre que du JSON valide.
 `;
 
-    const completion = await openai.chat.completions.create({
+    // ✅ NOUVELLE API OPENAI (OBLIGATOIRE)
+    const response = await openai.responses.create({
       model: "gpt-4.1-mini",
-      messages: [
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.7,
+      input: prompt,
     });
 
-    const raw = completion.choices[0].message.content;
+    const raw = response.output_text;
 
+    // Sécurité : si l'IA raconte n'importe quoi → crash contrôlé
     const recipe = JSON.parse(raw);
 
     return res.status(200).json(recipe);
@@ -67,7 +67,7 @@ Génère UNE recette en JSON STRICT avec EXACTEMENT ce format :
 
     return res.status(500).json({
       error: "AI_ERROR",
-      message: "Failed to generate recipe",
+      message: error.message || "Failed to generate recipe",
     });
   }
 });
