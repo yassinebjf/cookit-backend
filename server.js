@@ -5,21 +5,18 @@ import OpenAI from "openai";
 const app = express();
 const PORT = process.env.PORT || 3333;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// ✅ INIT OPENAI (clé via Render → Environment)
-const openai = new OpenAI({
+// ✅ OpenAI client (UNE seule fois)
+const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Route test
 app.get("/", (req, res) => {
   res.send("🍳 Cookit backend is running");
 });
 
-// 🔥 ROUTE RECETTE AVEC IA
 app.post("/recipe", async (req, res) => {
   try {
     const { ingredients } = req.body;
@@ -32,10 +29,15 @@ app.post("/recipe", async (req, res) => {
     }
 
     const prompt = `
-Tu es un chef cuisinier.
-À partir des ingrédients suivants : "${ingredients}"
+Tu es un chef cuisinier professionnel.
 
-Génère UNE recette en JSON STRICT avec EXACTEMENT ce format :
+À partir des ingrédients suivants :
+"${ingredients}"
+
+Génère UNE recette en JSON STRICT.
+Ne renvoie QUE du JSON valide (pas de texte, pas de backticks).
+
+Format EXACT :
 
 {
   "title": "string",
@@ -45,34 +47,26 @@ Génère UNE recette en JSON STRICT avec EXACTEMENT ce format :
   "estimatedMinutes": number,
   "cuisine": "string"
 }
-
-Ne renvoie RIEN d'autre que du JSON valide.
 `;
 
-    // ✅ NOUVELLE API OPENAI (OBLIGATOIRE)
-    const response = await openai.responses.create({
-      model: "gpt-4.1-mini",
+    const response = await client.responses.create({
+      model: "gpt-5.2",
       input: prompt,
+      temperature: 0.6,
+      response_format: { type: "json_object" },
     });
 
-    const raw = response.output_text;
-
-    // Sécurité : si l'IA raconte n'importe quoi → crash contrôlé
-    const recipe = JSON.parse(raw);
-
-    return res.status(200).json(recipe);
+    return res.status(200).json(response.output_parsed);
 
   } catch (error) {
     console.error("❌ /recipe error:", error);
-
     return res.status(500).json({
       error: "AI_ERROR",
-      message: error.message || "Failed to generate recipe",
+      message: error.message ?? "Failed to generate recipe",
     });
   }
 });
 
-// ✅ TOUJOURS EN DEHORS DES ROUTES
 app.listen(PORT, () => {
   console.log(`🚀 Cookit backend listening on port ${PORT}`);
 });
