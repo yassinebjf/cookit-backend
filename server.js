@@ -28,25 +28,46 @@ app.post("/recipe", async (req, res) => {
       });
     }
 
-    // 🔥 MOCK ACTUEL (sera remplacé par IA)
-    return res.status(200).json({
-      title: "Recette test Cookit",
-      ingredients,
-      steps: [
-        "Coupe les ingrédients",
-        "Fais chauffer une poêle",
-        "Cuisine tranquillement 😄",
+
+
+    const prompt = `
+Tu es un chef cuisinier.
+À partir des ingrédients suivants : "${ingredients}"
+
+Génère UNE recette en JSON STRICT avec EXACTEMENT ce format :
+
+{
+  "title": "string",
+  "ingredients": "string",
+  "steps": ["step 1", "step 2", "step 3"],
+  "calories": number,
+  "estimatedMinutes": number,
+  "cuisine": "string"
+}
+
+⚠️ Ne renvoie RIEN d'autre que du JSON valide.
+`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        { role: "user", content: prompt }
       ],
-      calories: 450,
-      estimatedMinutes: 20,
-      cuisine: "auto",
+      temperature: 0.7,
     });
+
+    const raw = completion.choices[0].message.content;
+
+    const recipe = JSON.parse(raw);
+
+    return res.status(200).json(recipe);
+
   } catch (error) {
     console.error("❌ /recipe error:", error);
 
     return res.status(500).json({
-      error: "INTERNAL_SERVER_ERROR",
-      message: "Something went wrong on the server",
+      error: "AI_ERROR",
+      message: "Failed to generate recipe",
     });
   }
 });
