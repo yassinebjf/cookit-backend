@@ -1,6 +1,9 @@
 import express from "express";
 import cors from "cors";
+import dotenv from "dotenv";
 import OpenAI from "openai";
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3333;
@@ -8,7 +11,7 @@ const PORT = process.env.PORT || 3333;
 app.use(cors());
 app.use(express.json());
 
-// ✅ OpenAI client (UNE SEULE FOIS)
+// ✅ OpenAI client (une seule fois)
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -55,25 +58,23 @@ Format EXACT :
       temperature: 0.6,
       text: {
         format: {
-          type: "json_object",
-        },
-      },
+          type: "json"
+        }
+      }
     });
 
-    // ✅ JSON déjà parsé par OpenAI
+    // ✅ Responses API retourne déjà du JSON parsé
     return res.status(200).json(response.output_parsed);
 
   } catch (error) {
     console.error("❌ /recipe error:", error);
-
     return res.status(500).json({
       error: "AI_ERROR",
-      message: error.message ?? "Failed to generate recipe",
+      message: error.message || "Failed to generate recipe",
     });
   }
 });
 
-// ✅ TOUJOURS EN DEHORS DES ROUTES
 app.listen(PORT, () => {
   console.log(`🚀 Cookit backend listening on port ${PORT}`);
 });
