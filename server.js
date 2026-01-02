@@ -11,15 +11,17 @@ const PORT = process.env.PORT || 3333;
 app.use(cors());
 app.use(express.json());
 
-// ✅ OpenAI client (une seule fois)
+// ✅ OpenAI client (UNE seule fois)
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// ✅ Health check
 app.get("/", (req, res) => {
   res.send("🍳 Cookit backend is running");
 });
 
+// ✅ Génération de recette IA (JSON strict)
 app.post("/recipe", async (req, res) => {
   try {
     const { ingredients } = req.body;
@@ -52,19 +54,22 @@ Format EXACT :
 }
 `;
 
+    // ✅ APPEL OFFICIEL ET CORRECT (Responses API)
     const response = await client.responses.create({
       model: "gpt-5.2",
       input: prompt,
       temperature: 0.6,
       text: {
         format: {
-          type: "json"
-        }
-      }
+          type: "json_object",
+        },
+      },
     });
 
-    // ✅ Responses API retourne déjà du JSON parsé
-    return res.status(200).json(response.output_parsed);
+    // ✅ Sortie propre et fiable
+    const json = JSON.parse(response.output_text);
+
+    return res.status(200).json(json);
 
   } catch (error) {
     console.error("❌ /recipe error:", error);
@@ -75,6 +80,7 @@ Format EXACT :
   }
 });
 
+// ✅ Toujours en dernier
 app.listen(PORT, () => {
   console.log(`🚀 Cookit backend listening on port ${PORT}`);
 });
