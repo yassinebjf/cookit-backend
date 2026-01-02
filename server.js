@@ -1,11 +1,17 @@
 import express from "express";
 import cors from "cors";
+import OpenAI from "openai";
 
 const app = express();
 const PORT = process.env.PORT || 3333;
 
 app.use(cors());
 app.use(express.json());
+
+// ✅ INIT OPENAI (STEP 2)
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 app.get("/", (req, res) => {
   res.send("🍳 Cookit backend is running");
@@ -22,7 +28,7 @@ app.post("/recipe", async (req, res) => {
       });
     }
 
-    // 🔥 MOCK ACTUEL (sera remplacé par IA plus tard)
+    // 🔥 MOCK ACTUEL (sera remplacé par IA)
     return res.status(200).json({
       title: "Recette test Cookit",
       ingredients,
