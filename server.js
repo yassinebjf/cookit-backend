@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 
 const app = express();
-const PORT = 3333;
+const PORT = process.env.PORT || 3333;
 
 app.use(cors());
 app.use(express.json());
@@ -25,10 +25,13 @@ app.post("/recipe", (req, res) => {
       "Coupe les ingrédients",
       "Fais chauffer une poêle",
       "Cuisine tranquillement 😄"
-    ]
+    ],
+    calories: 450,
+    estimatedMinutes: 20,
+    cuisine: "auto"
   });
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Cookit backend listening on http://localhost:${PORT}`);
+  console.log(`🚀 Cookit backend listening on port ${PORT}`);
 });
