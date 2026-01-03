@@ -24,8 +24,9 @@ app.get("/", (req, res) => {
 // ✅ Génération de recette IA (JSON strict)
 app.post("/recipe", async (req, res) => {
   try {
-    const { ingredients, duration } = req.body;
+    const { ingredients, duration, cuisine } = req.body;
 
+    // 🔒 VALIDATIONS STRICTES
     if (!ingredients || ingredients.trim().length === 0) {
       return res.status(400).json({
         error: "NO_INGREDIENTS",
@@ -33,43 +34,65 @@ app.post("/recipe", async (req, res) => {
       });
     }
 
+    if (!cuisine || cuisine.trim().length === 0) {
+      return res.status(400).json({
+        error: "NO_CUISINE",
+        message: "No cuisine provided",
+      });
+    }
+
     // 🔥 CONTRAINTE DE DURÉE (SOURCE DE VÉRITÉ BACKEND)
     const durationHint = {
       rapide: "15 minutes maximum",
-      moyen: "environ 30 minutes",
+      moyen: "entre 30 et 40 minutes",
       long: "60 minutes ou plus",
-    }[duration] || "environ 30 minutes";
+    }[duration] || "entre 30 et 40 minutes";
 
+    // 🧠 PROMPT STRICT
     const prompt = `
-Tu es un chef cuisinier professionnel.
+Tu es un chef cuisinier professionnel EXPERT en cuisine ${cuisine}.
 
-À partir des ingrédients suivants :
+⚠️ RÈGLE ABSOLUE :
+La recette DOIT être AUTHENTIQUEMENT ${cuisine}.
+Toute recette qui n’est PAS typique de la cuisine ${cuisine} est INTERDITE.
+
+Ingrédients disponibles :
 "${ingredients}"
 
-⚠️ CONTRAINTE DE TEMPS OBLIGATOIRE :
+⏱️ CONTRAINTE DE TEMPS OBLIGATOIRE :
 La recette DOIT durer ${durationHint}.
-Ne dépasse PAS cette durée.
+Ne dépasse JAMAIS cette durée.
 
-Génère UNE recette en JSON STRICT.
-Ne renvoie QUE du JSON valide (pas de texte, pas de backticks).
+🚫 SI IMPOSSIBLE :
+Si une recette authentique ${cuisine} est IMPOSSIBLE avec ces ingrédients :
+- REFUSE la génération
+- Explique brièvement pourquoi
+- Propose UNE cuisine alternative plus cohérente
 
-Format EXACT :
+Réponds UNIQUEMENT en JSON STRICT (aucun texte, aucun backtick).
+
+FORMAT EXACT :
 
 {
-  "title": "string",
-  "ingredients": "string",
-  "steps": ["step 1", "step 2", "step 3"],
-  "calories": number,
-  "estimatedMinutes": number,
-  "cuisine": "string"
+  "status": "ok | refused",
+  "title": "string | null",
+  "ingredients": "string | null",
+  "steps": [],
+  "calories": number | null,
+  "estimatedMinutes": number | null,
+  "cuisine": "${cuisine}",
+  "suggestion": {
+    "suggestedCuisine": "string",
+    "reason": "string"
+  } | null
 }
 `;
 
-    // ✅ APPEL OFFICIEL OPENAI (Responses API)
+    // ✅ APPEL OPENAI (Responses API)
     const response = await client.responses.create({
       model: "gpt-5.2",
       input: prompt,
-      temperature: 0.4, // plus strict = moins de délire
+      temperature: 0.3,
       text: {
         format: {
           type: "json_object",
@@ -77,9 +100,14 @@ Format EXACT :
       },
     });
 
-    // ✅ Sortie propre
     const json = JSON.parse(response.output_text);
 
+    // 🔁 REFUS PROPRE
+    if (json.status === "refused") {
+      return res.status(422).json(json);
+    }
+
+    // ✅ SUCCÈS
     return res.status(200).json(json);
 
   } catch (error) {
