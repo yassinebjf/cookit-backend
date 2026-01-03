@@ -152,26 +152,31 @@ TU N’AS PAS LE DROIT DE REFUSER.
       response_format: { type: "json_object" },
     });
 
-    // 🔒 Robust parsing (Render-safe)
-    let parsed = null;
+    // 🔒 Robust parsing (Render + local safe)
+    let parsed;
 
     try {
       if (response.output_parsed) {
         parsed = response.output_parsed;
       } else if (response.output_text) {
         parsed = JSON.parse(response.output_text);
-      } else if (response.output?.[0]?.content?.[0]?.text) {
+      } else if (
+        response.output &&
+        response.output[0] &&
+        response.output[0].content &&
+        response.output[0].content[0] &&
+        response.output[0].content[0].text
+      ) {
         parsed = JSON.parse(response.output[0].content[0].text);
+      } else {
+        throw new Error("No JSON payload from OpenAI");
       }
-    } catch (e) {
-      console.error("❌ JSON parse error:", e);
-    }
-
-    if (!parsed) {
-      console.error("❌ OpenAI invalid response:", response);
-      return res.status(500).json({
-        error: "AI_ERROR",
-        message: "Invalid OpenAI response format",
+    } catch (err) {
+      console.error("❌ OPENAI PARSING FAILURE", err);
+      console.error("❌ RAW RESPONSE:", JSON.stringify(response, null, 2));
+      return res.status(502).json({
+        error: "OPENAI_BAD_RESPONSE",
+        message: "Failed to parse OpenAI response",
       });
     }
 
