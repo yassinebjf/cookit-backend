@@ -140,6 +140,24 @@ SI OK :
   "suggestion": null
 }
 
+VARIATION OBLIGATOIRE :
+
+Si une recette a déjà été proposée pour ces ingrédients et cette cuisine,
+tu DOIS proposer une recette DIFFÉRENTE.
+
+Tu peux varier AU MOINS UN élément :
+- le type de plat (curry, sauté, rôti, mijoté, sec)
+- la technique (masala, jalfrezi, korma, pilaf, etc.)
+- la base de sauce (tomate, oignon, yaourt, crème, coco)
+- les épices dominantes
+
+INTERDICTION ABSOLUE :
+- Ne répète pas systématiquement la même recette.
+- Ne redonne pas une recette identique à la précédente.
+
+Chaque génération doit être différente,
+tout en restant authentiquement ${cuisine}.
+
 RÈGLE FINALE :
 Si les ingrédients principaux sont compatibles avec la cuisine ${cuisine},
 TU N’AS PAS LE DROIT DE REFUSER.
@@ -148,7 +166,7 @@ TU N’AS PAS LE DROIT DE REFUSER.
     const response = await client.responses.create({
       model: "gpt-4.1-mini",
       input: prompt,
-      temperature: 0.3,
+      temperature: 0.6,
       text: {
         format: { type: "json_object" }
       }
