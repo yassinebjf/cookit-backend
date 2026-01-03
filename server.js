@@ -8,16 +8,22 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+// =========================
 // Middlewares
+// =========================
 app.use(cors());
 app.use(express.json());
 
+// =========================
 // OpenAI client
+// =========================
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// =========================
 // Health check
+// =========================
 app.get("/", (req, res) => {
   res.send("🍳 Cookit backend is running");
 });
@@ -29,7 +35,9 @@ app.post("/recipe", async (req, res) => {
   try {
     const { ingredients, duration, cuisine } = req.body;
 
-    // 🔒 VALIDATIONS
+    // =========================
+    // 🔒 BACKEND VALIDATION (SOURCE DE VÉRITÉ)
+    // =========================
     if (!ingredients || ingredients.trim().length === 0) {
       return res.status(400).json({
         error: "NO_INGREDIENTS",
@@ -51,34 +59,51 @@ app.post("/recipe", async (req, res) => {
       long: "60 minutes ou plus",
     }[duration] || "entre 30 et 40 minutes";
 
+    // 🚨 VERROUILLAGE ABSOLU :
+    // Les ingrédients sont CONSIDÉRÉS VALIDES.
+    // L’IA n’a PAS le droit de discuter ce point.
     const prompt = `
+CONTEXTE TECHNIQUE (NON NÉGOCIABLE) :
+
+Les ingrédients principaux ont DÉJÀ été VALIDÉS par le backend.
+Ils sont considérés comme EXISTANTS, CORRECTS et EXPLOITABLES.
+
+TU N’AS PAS LE DROIT :
+- de dire qu’aucun ingrédient n’a été fourni
+- de demander plus d’ingrédients
+- de remettre en cause leur validité
+
+--------------------------------------------------
+
 Tu es un chef cuisinier professionnel, expert STRICT en cuisine ${cuisine}.
 
-RÈGLES ABSOLUES (NON NÉGOCIABLES) :
+RÈGLES ABSOLUES :
 
 1️⃣ Les ingrédients fournis par l’utilisateur sont les INGRÉDIENTS PRINCIPAUX.
-2️⃣ Tu DOIS AJOUTER automatiquement les ingrédients de base typiques de la cuisine ${cuisine}
-   (épices, aromates, huile, sel, oignon, ail, etc.), même s’ils ne sont PAS listés.
-3️⃣ Le manque d’ingrédients de base N’EST JAMAIS une raison de refus.
+2️⃣ Tu DOIS ajouter automatiquement les ingrédients de base typiques de la cuisine ${cuisine}
+   (épices, aromates, condiments, huile, sel, etc.).
+3️⃣ Le manque d’épices ou d’aromates N’EST JAMAIS une raison de refus.
 4️⃣ La recette DOIT être authentiquement ${cuisine}.
 5️⃣ La recette DOIT durer ${durationHint}. Ne dépasse JAMAIS cette durée.
 
-🚨 REFUS — CAS ULTRA RARE :
+🚨 REFUS — CAS EXTRÊMEMENT RARE :
 Tu REFUSES UNIQUEMENT si les ingrédients PRINCIPAUX sont
 fondamentalement incompatibles avec la cuisine ${cuisine},
-MÊME après ajout de TOUS les ingrédients de base classiques.
+MÊME après ajout de TOUTES les bases classiques.
 
 Exemples de REFUS LÉGITIMES :
 - Cuisine japonaise + chocolat + fromage
 - Cuisine indienne + chocolat + fromage
 - Cuisine italienne + algues + wasabi
 
-⚠️ EXEMPLES À SUIVRE (OBLIGATOIRES) :
-- Riz + poulet + cuisine indienne → ✅ ACCEPTER et ajouter épices indiennes
+Exemples OBLIGATOIRES À ACCEPTER :
+- Riz + poulet + cuisine indienne → ✅ ACCEPTER
 - Riz seul + cuisine indienne → ✅ ACCEPTER
 - Poulet seul + cuisine indienne → ✅ ACCEPTER
 
-FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT (AUCUN TEXTE EN DEHORS).
+--------------------------------------------------
+
+FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT.
 
 SI REFUS :
 {
@@ -107,7 +132,7 @@ SI OK :
   "suggestion": null
 }
 
-IMPORTANT FINAL :
+RÈGLE FINALE :
 Si les ingrédients principaux sont compatibles avec la cuisine ${cuisine},
 TU N’AS PAS LE DROIT DE REFUSER.
 `;
@@ -115,7 +140,7 @@ TU N’AS PAS LE DROIT DE REFUSER.
     const response = await client.responses.create({
       model: "gpt-5.2",
       input: prompt,
-      temperature: 0.35,
+      temperature: 0.3, // très strict
       text: {
         format: { type: "json_object" },
       },
@@ -138,7 +163,9 @@ TU N’AS PAS LE DROIT DE REFUSER.
   }
 });
 
+// =========================
 // START SERVER
+// =========================
 app.listen(PORT, () => {
   console.log(`🚀 Cookit backend listening on port ${PORT}`);
 });
