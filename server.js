@@ -1,3 +1,30 @@
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import OpenAI from "openai";
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 10000;
+
+// Middlewares
+app.use(cors());
+app.use(express.json());
+
+// OpenAI client
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Health check
+app.get("/", (req, res) => {
+  res.send("🍳 Cookit backend is running");
+});
+
+// =========================
+// 🍳 RECIPE GENERATION
+// =========================
 app.post("/recipe", async (req, res) => {
   try {
     const { ingredients, duration, cuisine } = req.body;
@@ -24,42 +51,30 @@ app.post("/recipe", async (req, res) => {
       long: "60 minutes ou plus",
     }[duration] || "entre 30 et 40 minutes";
 
-    /**
-     * 🧠 PHILOSOPHIE :
-     * - Les ingrédients donnés = ingrédients PRINCIPAUX
-     * - L’IA PEUT ajouter automatiquement les bases classiques de la cuisine choisie
-     *   (épices, aromates, huile, sel…)
-     * - REFUS UNIQUEMENT si MÊME AVEC ces bases, la cuisine est impossible
-     */
-
     const prompt = `
 Tu es un chef cuisinier professionnel, expert STRICT en cuisine ${cuisine}.
 
-RÈGLES ABSOLUES (À RESPECTER IMPÉRATIVEMENT) :
-
-1️⃣ Les ingrédients fournis par l’utilisateur sont les INGRÉDIENTS PRINCIPAUX.
-2️⃣ Tu DOIS ajouter automatiquement les ingrédients de base typiques de la cuisine ${cuisine}
-   (épices, aromates, condiments, matières grasses, bases classiques),
-   même s’ils ne sont PAS listés par l’utilisateur.
+RÈGLES ABSOLUES :
+1️⃣ Les ingrédients fournis sont les INGRÉDIENTS PRINCIPAUX.
+2️⃣ Tu AJOUTES automatiquement les bases classiques de la cuisine ${cuisine}
+   (épices, aromates, huile, sel, etc.).
 3️⃣ La recette DOIT être authentiquement ${cuisine}.
-4️⃣ La recette DOIT durer ${durationHint}. Ne dépasse JAMAIS cette durée.
+4️⃣ Durée OBLIGATOIRE : ${durationHint}.
 
-🚨 REFUS STRICT (CAS RARE) :
-Tu REFUSES UNIQUEMENT si les ingrédients PRINCIPAUX sont
-fondamentalement incompatibles avec la cuisine ${cuisine},
-MÊME après ajout de TOUS les ingrédients de base classiques.
+🚨 REFUS UNIQUEMENT SI :
+Même avec les bases classiques, les ingrédients principaux sont incompatibles
+avec la cuisine ${cuisine}.
 
-Exemples de REFUS légitime :
-- Cuisine japonaise + fromage + chocolat
-- Cuisine indienne + chocolat + fromage
-- Cuisine italienne + algues + wasabi
+Exemples de refus légitimes :
+- Japonaise + chocolat + fromage
+- Indienne + chocolat + fromage
+- Italienne + algues + wasabi
 
 ⚠️ IMPORTANT :
-- Le manque d’épices, d’aromates ou de bases classiques
-  N’EST JAMAIS une raison de refus.
-- Riz + poulet DOIT TOUJOURS donner une recette indienne valide.
+- Le manque d’épices n’est JAMAIS une raison de refus.
+- Riz + poulet DOIT donner une recette indienne valide.
 
-FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT :
+FORMAT JSON STRICT UNIQUEMENT.
 
 SI REFUS :
 {
@@ -81,7 +96,7 @@ SI OK :
   "status": "ok",
   "title": "string",
   "ingredients": "string",
-  "steps": ["step 1", "step 2", "step 3"],
+  "steps": ["step 1", "step 2"],
   "calories": number,
   "estimatedMinutes": number,
   "cuisine": "${cuisine}",
@@ -94,9 +109,7 @@ SI OK :
       input: prompt,
       temperature: 0.35,
       text: {
-        format: {
-          type: "json_object",
-        },
+        format: { type: "json_object" },
       },
     });
 
@@ -115,4 +128,9 @@ SI OK :
       message: error.message || "Failed to generate recipe",
     });
   }
+});
+
+// START SERVER
+app.listen(PORT, () => {
+  console.log(`🚀 Cookit backend listening on port ${PORT}`);
 });
