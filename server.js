@@ -146,11 +146,13 @@ TU N’AS PAS LE DROIT DE REFUSER.
 `;
 
     const response = await client.responses.create({
-  model: "gpt-4.1-mini",
-  input: prompt,
-  temperature: 0.3,
-  response_format: { type: "json_object" },
-});
+      model: "gpt-4.1-mini",
+      input: prompt,
+      temperature: 0.3,
+      text: {
+        format: { type: "json_object" }
+      }
+    });
 
 // 🛡️ PARSING ULTRA SAFE (Render / OpenAI)
 let json;
@@ -175,11 +177,11 @@ try {
   });
 }
 
-    if (parsed.status === "refused") {
-      return res.status(422).json(parsed);
+    if (json.status === "refused") {
+      return res.status(422).json(json);
     }
 
-    return res.status(200).json(parsed);
+    return res.status(200).json(json);
 
   } catch (error) {
     console.error("❌ /recipe error:", error);
