@@ -152,24 +152,34 @@ TU N’AS PAS LE DROIT DE REFUSER.
       response_format: { type: "json_object" },
     });
 
-    const outputText =
-      response.output_text ||
-      response.output?.[0]?.content?.[0]?.text;
+    // 🔒 Robust parsing (Render-safe)
+    let parsed = null;
 
-    if (!outputText) {
-      console.error("❌ OpenAI raw response:", response);
-      throw new Error("No output_text from OpenAI");
+    try {
+      if (response.output_parsed) {
+        parsed = response.output_parsed;
+      } else if (response.output_text) {
+        parsed = JSON.parse(response.output_text);
+      } else if (response.output?.[0]?.content?.[0]?.text) {
+        parsed = JSON.parse(response.output[0].content[0].text);
+      }
+    } catch (e) {
+      console.error("❌ JSON parse error:", e);
     }
 
-    console.log("🧠 OpenAI raw output:", outputText);
-
-    const json = JSON.parse(outputText);
-
-    if (json.status === "refused") {
-      return res.status(422).json(json);
+    if (!parsed) {
+      console.error("❌ OpenAI invalid response:", response);
+      return res.status(500).json({
+        error: "AI_ERROR",
+        message: "Invalid OpenAI response format",
+      });
     }
 
-    return res.status(200).json(json);
+    if (parsed.status === "refused") {
+      return res.status(422).json(parsed);
+    }
+
+    return res.status(200).json(parsed);
 
   } catch (error) {
     console.error("❌ /recipe error:", error);
