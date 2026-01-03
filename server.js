@@ -1,9 +1,14 @@
+
+
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import OpenAI from "openai";
 
 dotenv.config();
+
+console.log("📁 CWD =", process.cwd());
+console.log("🔑 OPENAI_API_KEY =", process.env.OPENAI_API_KEY?.slice(0, 15));
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -33,7 +38,10 @@ app.get("/", (req, res) => {
 // =========================
 app.post("/recipe", async (req, res) => {
   try {
-    const { ingredients, duration, cuisine } = req.body;
+    const { ingredients, duration } = req.body;
+    const cuisine = (req.body.cuisine && req.body.cuisine.trim().length > 0)
+      ? req.body.cuisine.trim()
+      : "indienne";
 
     // =========================
     // 🔒 BACKEND VALIDATION (SOURCE DE VÉRITÉ)
@@ -45,19 +53,19 @@ app.post("/recipe", async (req, res) => {
       });
     }
 
-    if (!cuisine || cuisine.trim().length === 0) {
-      return res.status(400).json({
-        error: "NO_CUISINE",
-        message: "No cuisine provided",
-      });
-    }
+    console.log("📩 BODY REÇU:", { ingredients, duration, cuisine });
+
+    // ⏱️ Sécurisation de la durée (évite valeurs invalides venant du front)
+    const safeDuration = ["rapide", "moyen", "long"].includes(duration)
+      ? duration
+      : "moyen";
 
     // ⏱️ CONTRAINTE DE DURÉE
     const durationHint = {
       rapide: "15 minutes maximum",
       moyen: "entre 30 et 40 minutes",
       long: "60 minutes ou plus",
-    }[duration] || "entre 30 et 40 minutes";
+    }[safeDuration];
 
     // 🚨 VERROUILLAGE ABSOLU :
     // Les ingrédients sont CONSIDÉRÉS VALIDES.
@@ -138,15 +146,13 @@ TU N’AS PAS LE DROIT DE REFUSER.
 `;
 
     const response = await client.responses.create({
-      model: "gpt-5.2",
-      input: prompt,
-      temperature: 0.3, // très strict
-      text: {
-        format: { type: "json_object" },
-      },
-    });
+  model: "gpt-4.1-mini",
+  input: prompt,
+  temperature: 0.3,
+  response_format: { type: "json_object" },
+});
 
-    const json = JSON.parse(response.output_text);
+const json = response.output_parsed;
 
     if (json.status === "refused") {
       return res.status(422).json(json);
