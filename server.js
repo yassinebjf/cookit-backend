@@ -152,9 +152,18 @@ TU N’AS PAS LE DROIT DE REFUSER.
       response_format: { type: "json_object" },
     });
 
-const json =
-  response.output_parsed ??
-  JSON.parse(response.output_text);
+    const outputText =
+      response.output_text ||
+      response.output?.[0]?.content?.[0]?.text;
+
+    if (!outputText) {
+      console.error("❌ OpenAI raw response:", response);
+      throw new Error("No output_text from OpenAI");
+    }
+
+    console.log("🧠 OpenAI raw output:", outputText);
+
+    const json = JSON.parse(outputText);
 
     if (json.status === "refused") {
       return res.status(422).json(json);
