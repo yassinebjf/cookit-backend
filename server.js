@@ -1,32 +1,8 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import OpenAI from "openai";
-
-dotenv.config();
-
-const app = express();
-const PORT = process.env.PORT || 3333;
-
-app.use(cors());
-app.use(express.json());
-
-// ✅ OpenAI client (UNE seule fois)
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// ✅ Health check
-app.get("/", (req, res) => {
-  res.send("🍳 Cookit backend is running");
-});
-
-// ✅ Génération de recette IA (JSON strict)
 app.post("/recipe", async (req, res) => {
   try {
     const { ingredients, duration, cuisine } = req.body;
 
-    // 🔒 VALIDATIONS STRICTES
+    // 🔒 VALIDATIONS
     if (!ingredients || ingredients.trim().length === 0) {
       return res.status(400).json({
         error: "NO_INGREDIENTS",
@@ -41,58 +17,82 @@ app.post("/recipe", async (req, res) => {
       });
     }
 
-    // 🔥 CONTRAINTE DE DURÉE (SOURCE DE VÉRITÉ BACKEND)
+    // ⏱️ CONTRAINTE DE DURÉE
     const durationHint = {
       rapide: "15 minutes maximum",
       moyen: "entre 30 et 40 minutes",
       long: "60 minutes ou plus",
     }[duration] || "entre 30 et 40 minutes";
 
-    // 🧠 PROMPT STRICT
+    /**
+     * 🧠 PHILOSOPHIE :
+     * - Les ingrédients donnés = ingrédients PRINCIPAUX
+     * - L’IA PEUT ajouter automatiquement les bases classiques de la cuisine choisie
+     *   (épices, aromates, huile, sel…)
+     * - REFUS UNIQUEMENT si MÊME AVEC ces bases, la cuisine est impossible
+     */
+
     const prompt = `
-Tu es un chef cuisinier professionnel EXPERT en cuisine ${cuisine}.
+Tu es un chef cuisinier professionnel, expert STRICT en cuisine ${cuisine}.
 
-⚠️ RÈGLE ABSOLUE :
-La recette DOIT être AUTHENTIQUEMENT ${cuisine}.
-Toute recette qui n’est PAS typique de la cuisine ${cuisine} est INTERDITE.
+RÈGLES ABSOLUES (À RESPECTER IMPÉRATIVEMENT) :
 
-Ingrédients disponibles :
-"${ingredients}"
+1️⃣ Les ingrédients fournis par l’utilisateur sont les INGRÉDIENTS PRINCIPAUX.
+2️⃣ Tu DOIS ajouter automatiquement les ingrédients de base typiques de la cuisine ${cuisine}
+   (épices, aromates, condiments, matières grasses, bases classiques),
+   même s’ils ne sont PAS listés par l’utilisateur.
+3️⃣ La recette DOIT être authentiquement ${cuisine}.
+4️⃣ La recette DOIT durer ${durationHint}. Ne dépasse JAMAIS cette durée.
 
-⏱️ CONTRAINTE DE TEMPS OBLIGATOIRE :
-La recette DOIT durer ${durationHint}.
-Ne dépasse JAMAIS cette durée.
+🚨 REFUS STRICT (CAS RARE) :
+Tu REFUSES UNIQUEMENT si les ingrédients PRINCIPAUX sont
+fondamentalement incompatibles avec la cuisine ${cuisine},
+MÊME après ajout de TOUS les ingrédients de base classiques.
 
-🚫 SI IMPOSSIBLE :
-Si une recette authentique ${cuisine} est IMPOSSIBLE avec ces ingrédients :
-- REFUSE la génération
-- Explique brièvement pourquoi
-- Propose UNE cuisine alternative plus cohérente
+Exemples de REFUS légitime :
+- Cuisine japonaise + fromage + chocolat
+- Cuisine indienne + chocolat + fromage
+- Cuisine italienne + algues + wasabi
 
-Réponds UNIQUEMENT en JSON STRICT (aucun texte, aucun backtick).
+⚠️ IMPORTANT :
+- Le manque d’épices, d’aromates ou de bases classiques
+  N’EST JAMAIS une raison de refus.
+- Riz + poulet DOIT TOUJOURS donner une recette indienne valide.
 
-FORMAT EXACT :
+FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT :
 
+SI REFUS :
 {
-  "status": "ok | refused",
-  "title": "string | null",
-  "ingredients": "string | null",
+  "status": "refused",
+  "title": null,
+  "ingredients": null,
   "steps": [],
-  "calories": number | null,
-  "estimatedMinutes": number | null,
+  "calories": null,
+  "estimatedMinutes": null,
   "cuisine": "${cuisine}",
   "suggestion": {
     "suggestedCuisine": "string",
     "reason": "string"
-  } | null
+  }
+}
+
+SI OK :
+{
+  "status": "ok",
+  "title": "string",
+  "ingredients": "string",
+  "steps": ["step 1", "step 2", "step 3"],
+  "calories": number,
+  "estimatedMinutes": number,
+  "cuisine": "${cuisine}",
+  "suggestion": null
 }
 `;
 
-    // ✅ APPEL OPENAI (Responses API)
     const response = await client.responses.create({
       model: "gpt-5.2",
       input: prompt,
-      temperature: 0.3,
+      temperature: 0.35,
       text: {
         format: {
           type: "json_object",
@@ -102,12 +102,10 @@ FORMAT EXACT :
 
     const json = JSON.parse(response.output_text);
 
-    // 🔁 REFUS PROPRE
     if (json.status === "refused") {
       return res.status(422).json(json);
     }
 
-    // ✅ SUCCÈS
     return res.status(200).json(json);
 
   } catch (error) {
@@ -117,9 +115,4 @@ FORMAT EXACT :
       message: error.message || "Failed to generate recipe",
     });
   }
-});
-
-// ✅ Toujours en dernier
-app.listen(PORT, () => {
-  console.log(`🚀 Cookit backend listening on port ${PORT}`);
 });
