@@ -146,13 +146,15 @@ TU N’AS PAS LE DROIT DE REFUSER.
 `;
 
     const response = await client.responses.create({
-  model: "gpt-4.1-mini",
-  input: prompt,
-  temperature: 0.3,
-  response_format: { type: "json_object" },
-});
+      model: "gpt-4o-mini",
+      input: prompt,
+      temperature: 0.3,
+      response_format: { type: "json_object" },
+    });
 
-const json = response.output_parsed;
+const json =
+  response.output_parsed ??
+  JSON.parse(response.output_text);
 
     if (json.status === "refused") {
       return res.status(422).json(json);
