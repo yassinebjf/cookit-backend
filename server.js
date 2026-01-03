@@ -146,39 +146,34 @@ TU N’AS PAS LE DROIT DE REFUSER.
 `;
 
     const response = await client.responses.create({
-      model: "gpt-4o-mini",
-      input: prompt,
-      temperature: 0.3,
-      response_format: { type: "json_object" },
-    });
+  model: "gpt-4.1-mini",
+  input: prompt,
+  temperature: 0.3,
+  response_format: { type: "json_object" },
+});
 
-    // 🔒 Robust parsing (Render + local safe)
-    let parsed;
+// 🛡️ PARSING ULTRA SAFE (Render / OpenAI)
+let json;
 
-    try {
-      if (response.output_parsed) {
-        parsed = response.output_parsed;
-      } else if (response.output_text) {
-        parsed = JSON.parse(response.output_text);
-      } else if (
-        response.output &&
-        response.output[0] &&
-        response.output[0].content &&
-        response.output[0].content[0] &&
-        response.output[0].content[0].text
-      ) {
-        parsed = JSON.parse(response.output[0].content[0].text);
-      } else {
-        throw new Error("No JSON payload from OpenAI");
-      }
-    } catch (err) {
-      console.error("❌ OPENAI PARSING FAILURE", err);
-      console.error("❌ RAW RESPONSE:", JSON.stringify(response, null, 2));
-      return res.status(502).json({
-        error: "OPENAI_BAD_RESPONSE",
-        message: "Failed to parse OpenAI response",
-      });
-    }
+try {
+  if (response.output_parsed) {
+    json = response.output_parsed;
+  } else if (
+    response.output &&
+    response.output[0]?.content &&
+    response.output[0].content[0]?.text
+  ) {
+    json = JSON.parse(response.output[0].content[0].text);
+  } else {
+    throw new Error("No parsable OpenAI response");
+  }
+} catch (e) {
+  console.error("❌ OpenAI BAD RESPONSE:", response);
+  return res.status(502).json({
+    error: "OPENAI_BAD_RESPONSE",
+    message: "Invalid AI response format",
+  });
+}
 
     if (parsed.status === "refused") {
       return res.status(422).json(parsed);
