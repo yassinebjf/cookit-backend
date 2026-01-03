@@ -24,7 +24,7 @@ app.get("/", (req, res) => {
 // ✅ Génération de recette IA (JSON strict)
 app.post("/recipe", async (req, res) => {
   try {
-    const { ingredients } = req.body;
+    const { ingredients, duration } = req.body;
 
     if (!ingredients || ingredients.trim().length === 0) {
       return res.status(400).json({
@@ -33,11 +33,22 @@ app.post("/recipe", async (req, res) => {
       });
     }
 
+    // 🔥 CONTRAINTE DE DURÉE (SOURCE DE VÉRITÉ BACKEND)
+    const durationHint = {
+      rapide: "15 minutes maximum",
+      moyen: "environ 30 minutes",
+      long: "60 minutes ou plus",
+    }[duration] || "environ 30 minutes";
+
     const prompt = `
 Tu es un chef cuisinier professionnel.
 
 À partir des ingrédients suivants :
 "${ingredients}"
+
+⚠️ CONTRAINTE DE TEMPS OBLIGATOIRE :
+La recette DOIT durer ${durationHint}.
+Ne dépasse PAS cette durée.
 
 Génère UNE recette en JSON STRICT.
 Ne renvoie QUE du JSON valide (pas de texte, pas de backticks).
@@ -54,11 +65,11 @@ Format EXACT :
 }
 `;
 
-    // ✅ APPEL OFFICIEL ET CORRECT (Responses API)
+    // ✅ APPEL OFFICIEL OPENAI (Responses API)
     const response = await client.responses.create({
       model: "gpt-5.2",
       input: prompt,
-      temperature: 0.6,
+      temperature: 0.4, // plus strict = moins de délire
       text: {
         format: {
           type: "json_object",
@@ -66,7 +77,7 @@ Format EXACT :
       },
     });
 
-    // ✅ Sortie propre et fiable
+    // ✅ Sortie propre
     const json = JSON.parse(response.output_text);
 
     return res.status(200).json(json);
