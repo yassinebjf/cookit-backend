@@ -51,12 +51,15 @@ const client = new OpenAI({
 // =========================
 app.post("/recipe", recipeLimiter, async (req, res) => {
   try {
-    const { ingredients, duration, mode, extraIngredients = [] } = req.body;
-    const safeExtraIngredients = Array.isArray(extraIngredients)
-      ? extraIngredients.filter(
-          (e) => typeof e === "string" && e.trim().length > 0
-        )
-      : [];
+    const {
+      ingredients,
+      duration,
+      mode,
+      extraIngredients = [],
+      isPremium = false,
+    } = req.body;
+
+    const PREMIUM_MODE = isPremium === true;
     const randomCuisines = ["french", "italian", "japanese", "mediterranean"];
 
     // Normalisation de la cuisine reçue (front multilingue)
@@ -120,10 +123,6 @@ app.post("/recipe", recipeLimiter, async (req, res) => {
     const safeDuration = duration;
 
     // 🍽️ Mode de préparation (plat par défaut)
-    const safeMode = mode === "dessert" ? "dessert" : "savory";
-    if (IS_DEV) {
-      console.log("🍽️ MODE:", safeMode);
-    }
 
     // ⏱️ CONTRAINTE DE DURÉE
     const durationHint = {
@@ -137,10 +136,30 @@ app.post("/recipe", recipeLimiter, async (req, res) => {
       safeDuration === "moyen" ? 30 :
       60;
 
+    const aiConfig = PREMIUM_MODE
+      ? {
+          model: "gpt-4.1",
+          temperature: 0.3,
+          timeoutMs: 30_000,
+          extraPrompt: `
+MODE PREMIUM ACTIVÉ
+- Réponses plus précises
+- Quantités plus détaillées
+- Étapes plus pédagogiques
+- Calories plus cohérentes et réalistes
+`,
+        }
+      : {
+          model: "gpt-4.1-mini",
+          temperature: 0.6,
+          timeoutMs: 20_000,
+          extraPrompt: "",
+        };
     // 🚨 VERROUILLAGE ABSOLU :
     // Les ingrédients sont CONSIDÉRÉS VALIDES.
     // L’IA n’a PAS le droit de discuter ce point.
     const prompt = `
+${aiConfig.extraPrompt}
 MODE STRICT — OBLIGATOIRE
 
 Tu es dans un mode de CONTRAINTE ABSOLUE.
@@ -224,13 +243,13 @@ Si TU AJOUTES un ingrédient non autorisé,
 la réponse est CONSIDÉRÉE COMME INVALIDE.
 `;
 
-    const openAITimeoutMs = 20_000;
+    const openAITimeoutMs = aiConfig.timeoutMs;
 
     const response = await Promise.race([
       client.responses.create({
-        model: "gpt-4.1-mini",
+        model: aiConfig.model,
         input: prompt,
-        temperature: 0.6,
+        temperature: aiConfig.temperature,
         text: {
           format: { type: "json_object" }
         }
