@@ -42,9 +42,14 @@ app.post("/recipe", async (req, res) => {
           (e) => typeof e === "string" && e.trim().length > 0
         )
       : [];
-    const cuisine = (req.body.cuisine && req.body.cuisine.trim().length > 0)
-      ? req.body.cuisine.trim()
-      : "indienne";
+    const randomCuisines = ["french", "italian", "japanese", "mediterranean"];
+
+    let cuisine;
+    if (req.body.cuisine && req.body.cuisine.trim().length > 0) {
+      cuisine = req.body.cuisine.trim();
+    } else {
+      cuisine = randomCuisines[Math.floor(Math.random() * randomCuisines.length)];
+    }
 
     // =========================
     // 🔒 BACKEND VALIDATION (SOURCE DE VÉRITÉ)
@@ -152,6 +157,7 @@ FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT :
   "ingredients": "string",
   "steps": ["étape 1", "étape 2"],
   "estimatedMinutes": ${estimatedMinutes},
+  "caloriesKcal": number,
   "cuisine": "${cuisine}",
   "mode": "strict"
 }
@@ -202,6 +208,9 @@ la réponse est CONSIDÉRÉE COMME INVALIDE.
     // 🛡️ Sécurité finale : jamais de minutes nulles
     if (typeof json.estimatedMinutes !== "number") {
       json.estimatedMinutes = estimatedMinutes;
+    }
+    if (typeof json.caloriesKcal !== "number") {
+      json.caloriesKcal = null;
     }
 
     return res.status(200).json(json);
