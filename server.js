@@ -2,11 +2,10 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import OpenAI from "openai";
+import rateLimit from "express-rate-limit";
 
 dotenv.config();
-
-console.log("📁 CWD =", process.cwd());
-console.log("🔑 OPENAI_API_KEY =", process.env.OPENAI_API_KEY?.slice(0, 15));
+const IS_DEV = process.env.NODE_ENV !== "production";
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -17,6 +16,29 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 
+const recipeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// =========================
+// Health check
+// =========================
+const START_TIME = Date.now();
+const VERSION = "2.0.0";
+
+app.get("/", (req, res) => {
+  res.json({
+    status: "ok",
+    service: "cookit-backend",
+    version: VERSION,
+    uptimeSeconds: Math.floor((Date.now() - START_TIME) / 1000),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // =========================
 // OpenAI client
 // =========================
@@ -25,16 +47,9 @@ const client = new OpenAI({
 });
 
 // =========================
-// Health check
-// =========================
-app.get("/", (req, res) => {
-  res.send("🍳 Cookit backend is running");
-});
-
-// =========================
 // 🍳 RECIPE GENERATION
 // =========================
-app.post("/recipe", async (req, res) => {
+app.post("/recipe", recipeLimiter, async (req, res) => {
   try {
     const { ingredients, duration, mode, extraIngredients = [] } = req.body;
     const safeExtraIngredients = Array.isArray(extraIngredients)
@@ -94,9 +109,6 @@ app.post("/recipe", async (req, res) => {
       });
     }
 
-    console.log("📩 BODY REÇU:", { ingredients, duration, cuisine });
-    console.log("➕ EXTRA INGREDIENTS:", safeExtraIngredients);
-
     // ⏱️ Validation stricte de la durée (le backend refuse l'incohérence)
     if (!duration || !["rapide", "moyen", "long"].includes(duration)) {
       return res.status(400).json({
@@ -109,7 +121,9 @@ app.post("/recipe", async (req, res) => {
 
     // 🍽️ Mode de préparation (plat par défaut)
     const safeMode = mode === "dessert" ? "dessert" : "savory";
-    console.log("🍽️ MODE:", safeMode);
+    if (IS_DEV) {
+      console.log("🍽️ MODE:", safeMode);
+    }
 
     // ⏱️ CONTRAINTE DE DURÉE
     const durationHint = {
@@ -210,14 +224,24 @@ Si TU AJOUTES un ingrédient non autorisé,
 la réponse est CONSIDÉRÉE COMME INVALIDE.
 `;
 
-    const response = await client.responses.create({
-      model: "gpt-4.1-mini",
-      input: prompt,
-      temperature: 0.6,
-      text: {
-        format: { type: "json_object" }
-      }
-    });
+    const openAITimeoutMs = 20_000;
+
+    const response = await Promise.race([
+      client.responses.create({
+        model: "gpt-4.1-mini",
+        input: prompt,
+        temperature: 0.6,
+        text: {
+          format: { type: "json_object" }
+        }
+      }),
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("OPENAI_TIMEOUT")),
+          openAITimeoutMs
+        )
+      ),
+    ]);
 
     // 🛡️ PARSING ULTRA SAFE (Render / OpenAI)
     let json;
@@ -235,7 +259,9 @@ la réponse est CONSIDÉRÉE COMME INVALIDE.
         throw new Error("No parsable OpenAI response");
       }
     } catch (e) {
-      console.error("❌ OpenAI BAD RESPONSE:", response);
+      if (IS_DEV) {
+        console.error("❌ OpenAI BAD RESPONSE:", response);
+      }
       return res.status(502).json({
         error: "OPENAI_BAD_RESPONSE",
         message: "Invalid AI response format",
@@ -263,7 +289,16 @@ la réponse est CONSIDÉRÉE COMME INVALIDE.
     return res.status(200).json(json);
 
   } catch (error) {
-    console.error("❌ /recipe error:", error);
+    if (IS_DEV) {
+      console.error("❌ /recipe error:", error);
+    }
+    if (error.message === "OPENAI_TIMEOUT") {
+      return res.status(504).json({
+        error: "OPENAI_TIMEOUT",
+        message: "AI response took too long, please retry",
+      });
+    }
+
     return res.status(500).json({
       error: "AI_ERROR",
       message: error.message || "Failed to generate recipe",
@@ -275,5 +310,5 @@ la réponse est CONSIDÉRÉE COMME INVALIDE.
 // START SERVER
 // =========================
 app.listen(PORT, () => {
-  console.log(`🚀 Cookit backend listening on port ${PORT}`);
+  console.log(`🚀 Cookit backend listening on port ${PORT} (${IS_DEV ? "dev" : "prod"})`);
 });
