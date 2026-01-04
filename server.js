@@ -79,115 +79,78 @@ app.post("/recipe", async (req, res) => {
     // Les ingrédients sont CONSIDÉRÉS VALIDES.
     // L’IA n’a PAS le droit de discuter ce point.
     const prompt = `
-CONTEXTE TECHNIQUE (NON NÉGOCIABLE) :
+MODE STRICT — OBLIGATOIRE
 
-Les ingrédients principaux ont DÉJÀ été VALIDÉS par le backend.
-Ils sont considérés comme EXISTANTS, CORRECTS et EXPLOITABLES.
-
-MODE DE PRÉPARATION :
-- Mode sélectionné : ${safeMode === "dessert" ? "PÂTISSERIE / SUCRÉ" : "PLAT SALÉ"}
+Tu es dans un mode de CONTRAINTE ABSOLUE.
+Ce n’est PAS une tâche créative libre.
+Tu dois STRICTEMENT respecter les règles ci-dessous.
 
 --------------------------------------------------
-RÈGLES COMMUNES (TOUS MODES) :
+LISTE DES INGRÉDIENTS AUTORISÉS (LISTE FERMÉE) :
+
+${ingredients}
 
 --------------------------------------------------
-RÈGLES STRICTES — INGRÉDIENTS (NON NÉGOCIABLES) :
+RÈGLES ABSOLUES (AUCUNE EXCEPTION) :
 
-- Tu peux UTILISER UNIQUEMENT les ingrédients explicitement listés par l’utilisateur.
-- Si une protéine (poulet, bœuf, poisson, agneau, porc, crevettes, saumon, thon, etc.)
-  N’EST PAS explicitement présente dans la liste des ingrédients fournis,
-  elle est STRICTEMENT INTERDITE dans la recette.
+1. Tu DOIS utiliser UNIQUEMENT les ingrédients listés ci-dessus.
+2. Tu ES STRICTEMENT INTERDIT d’ajouter :
+   - viande
+   - poisson
+   - volaille
+   - fruits de mer
+   - légumes
+   - fruits
+   - produits laitiers
+   - tout ingrédient non listé explicitement
 
-- Les œufs NE SONT PAS une alternative à la viande ou au poisson.
-- Si AUCUNE viande ou poisson n’est listé,
-  la recette DOIT être végétarienne.
+3. Tu ES AUTORISÉ à ajouter UNIQUEMENT :
+   - sel
+   - poivre
+   - épices sèches (en lien avec la cuisine choisie)
+   - huile ou matière grasse
+   - liquides techniques : eau, vinaigre, sauce soja, vin
 
-- Toute violation de ces règles rend la réponse INVALIDE.
-  Tu dois alors reformuler une recette STRICTEMENT conforme.
---------------------------------------------------
-
-Tu DOIS utiliser UNIQUEMENT :
-- les ingrédients fournis par l’utilisateur
-- les ingrédients supplémentaires explicitement sélectionnés dans l’interface
-
-Liste des ingrédients supplémentaires AUTORISÉS :
-${safeExtraIngredients.length > 0 ? safeExtraIngredients.join(", ") : "AUCUN"}
-
-AUTORISÉ AUTOMATIQUEMENT :
-- sel
-- poivre
-- toutes les épices sèches (paprika, curry, curcuma, cumin, herbes sèches, thym, laurier, etc.)
-- huile, beurre
-- eau
-- lait
-
-INGRÉDIENTS TECHNIQUES AUTORISÉS (USAGE LIMITÉ) :
-- farine
-- sucre
-
-⚠️ La farine et le sucre sont AUTORISÉS UNIQUEMENT comme ingrédients techniques
-(liaison, panure, texture, équilibre, caramélisation légère).
-Ils NE DOIVENT PAS servir à créer des desserts ou pâtisseries complètes
-SAUF si le mode est explicitement "dessert".
-
-INTERDICTION ABSOLUE (TOUS MODES) :
-- ajouter des ingrédients NON présents dans les listes ci-dessus
-- ajouter des légumes, fruits ou produits frais non explicitement fournis
-- compléter une recette avec des ingrédients "logiques"
-- suggérer ou demander des ingrédients manquants
+4. Si la liste d’ingrédients est très courte :
+   - tu DOIS quand même produire un plat valide
+   - une recette simple et traditionnelle est attendue
+   - tu n’as PAS le droit d’inventer des ingrédients
 
 --------------------------------------------------
-MODE PLAT SALÉ (${safeMode === "savory" ? "ACTIF" : "INACTIF"}) :
+STYLE DE CUISINE :
 
-Tu es un chef cuisinier professionnel, expert STRICT en cuisine ${cuisine}.
+Cuisine sélectionnée : ${cuisine || "basée ingrédients"}
 
-RÈGLES SPÉCIFIQUES :
-- La recette DOIT être salée
-- INTERDICTION de créer un dessert ou une pâtisserie
-- La recette DOIT durer ${durationHint}
-- Respect STRICT des ingrédients fournis
-
---------------------------------------------------
-MODE PÂTISSERIE (${safeMode === "dessert" ? "ACTIF" : "INACTIF"}) :
-
-Tu es un pâtissier professionnel.
-
-RÈGLES SPÉCIFIQUES :
-- La recette DOIT être sucrée
-- Les techniques de pâtisserie sont AUTORISÉES
-- La farine et le sucre peuvent être utilisés librement
-- La recette DOIT rester simple et réalisable avec les ingrédients fournis
-
---------------------------------------------------
-VARIATION OBLIGATOIRE :
-
-Si une recette a déjà été proposée pour ces ingrédients, ce mode et cette cuisine,
-tu DOIS proposer une recette DIFFÉRENTE.
-
-Tu peux varier :
-- le type de préparation
+La cuisine influence UNIQUEMENT :
+- les épices
 - la technique
-- les épices dominantes
-- la texture finale
+- le nom du plat
+
+Elle NE DOIT JAMAIS introduire de nouveaux ingrédients.
 
 --------------------------------------------------
-FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT.
+CONTRAINTE DE DURÉE :
+
+La recette DOIT durer : ${durationHint}
+
+--------------------------------------------------
+FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT :
 
 {
   "status": "ok",
   "title": "string",
   "ingredients": "string",
-  "steps": ["step 1", "step 2", "step 3"],
-  "calories": number,
+  "steps": ["étape 1", "étape 2"],
   "estimatedMinutes": number,
   "cuisine": "${cuisine}",
-  "mode": "${safeMode}",
-  "suggestion": null
+  "mode": "strict"
 }
 
+--------------------------------------------------
 RÈGLE FINALE :
-Si les ingrédients principaux ET supplémentaires fournis sont compatibles avec le mode sélectionné,
-TU DOIS générer une recette STRICTE sans aucun ingrédient ajouté.
+
+Si TU AJOUTES un ingrédient non autorisé,
+la réponse est CONSIDÉRÉE COMME INVALIDE.
 `;
 
     const response = await client.responses.create({
