@@ -44,11 +44,44 @@ app.post("/recipe", async (req, res) => {
       : [];
     const randomCuisines = ["french", "italian", "japanese", "mediterranean"];
 
+    // Normalisation de la cuisine reçue (front multilingue)
+    const rawCuisine =
+      typeof req.body.cuisine === "string"
+        ? req.body.cuisine.trim().toLowerCase()
+        : null;
+
+    // Valeurs considérées comme "aléatoire"
+    const RANDOM_KEYS = [
+      "random",
+      "aleatoire",
+      "aléatoire",
+      "choisis un type de cuisine",
+      ""
+    ];
+
+    // Mapping labels UI → codes backend
+    const CUISINE_MAP = {
+      "française": "french",
+      "french": "french",
+      "italienne": "italian",
+      "italian": "italian",
+      "japonaise": "japanese",
+      "japanese": "japanese",
+      "méditerranéenne": "mediterranean",
+      "mediterranean": "mediterranean",
+    };
+
     let cuisine;
-    if (req.body.cuisine && req.body.cuisine.trim().length > 0) {
-      cuisine = req.body.cuisine.trim();
+
+    if (!rawCuisine || RANDOM_KEYS.includes(rawCuisine)) {
+      cuisine =
+        randomCuisines[Math.floor(Math.random() * randomCuisines.length)];
+    } else if (CUISINE_MAP[rawCuisine]) {
+      cuisine = CUISINE_MAP[rawCuisine];
     } else {
-      cuisine = randomCuisines[Math.floor(Math.random() * randomCuisines.length)];
+      // Sécurité : fallback random si valeur inconnue
+      cuisine =
+        randomCuisines[Math.floor(Math.random() * randomCuisines.length)];
     }
 
     // =========================
@@ -157,10 +190,18 @@ FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT :
   "ingredients": "string",
   "steps": ["étape 1", "étape 2"],
   "estimatedMinutes": ${estimatedMinutes},
-  "caloriesKcal": number,
+  "caloriesKcal": number (estimation réaliste basée sur les ingrédients et quantités),
   "cuisine": "${cuisine}",
   "mode": "strict"
 }
+
+--------------------------------------------------
+RÈGLE CALORIES (OBLIGATOIRE) :
+
+- Tu DOIS estimer les calories à partir des ingrédients réellement utilisés
+- Utilise des portions réalistes (ex: 1 œuf ≈ 70 kcal)
+- L’estimation doit être cohérente avec la recette (±20% accepté)
+- Tu N’AS PAS le droit d’inventer des calories arbitraires
 
 --------------------------------------------------
 RÈGLE FINALE :
@@ -205,12 +246,18 @@ la réponse est CONSIDÉRÉE COMME INVALIDE.
       return res.status(422).json(json);
     }
 
+    // 🛡️ Validation stricte des calories (jamais inventées par le backend)
+    if (typeof json.caloriesKcal !== "number" || json.caloriesKcal <= 0) {
+      return res.status(502).json({
+        error: "INVALID_CALORIES",
+        message: "AI did not return valid calorie estimation",
+      });
+    }
+    json.caloriesKcal = Math.round(json.caloriesKcal);
+
     // 🛡️ Sécurité finale : jamais de minutes nulles
     if (typeof json.estimatedMinutes !== "number") {
       json.estimatedMinutes = estimatedMinutes;
-    }
-    if (typeof json.caloriesKcal !== "number") {
-      json.caloriesKcal = null;
     }
 
     return res.status(200).json(json);
