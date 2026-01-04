@@ -59,10 +59,15 @@ app.post("/recipe", async (req, res) => {
     console.log("📩 BODY REÇU:", { ingredients, duration, cuisine });
     console.log("➕ EXTRA INGREDIENTS:", safeExtraIngredients);
 
-    // ⏱️ Sécurisation de la durée (évite valeurs invalides venant du front)
-    const safeDuration = ["rapide", "moyen", "long"].includes(duration)
-      ? duration
-      : "moyen";
+    // ⏱️ Validation stricte de la durée (le backend refuse l'incohérence)
+    if (!duration || !["rapide", "moyen", "long"].includes(duration)) {
+      return res.status(400).json({
+        error: "INVALID_DURATION",
+        message: "Duration must be 'rapide', 'moyen' or 'long'",
+      });
+    }
+
+    const safeDuration = duration;
 
     // 🍽️ Mode de préparation (plat par défaut)
     const safeMode = mode === "dessert" ? "dessert" : "savory";
@@ -74,6 +79,11 @@ app.post("/recipe", async (req, res) => {
       moyen: "entre 30 et 40 minutes",
       long: "60 minutes ou plus",
     }[safeDuration];
+
+    const estimatedMinutes =
+      safeDuration === "rapide" ? 10 :
+      safeDuration === "moyen" ? 30 :
+      60;
 
     // 🚨 VERROUILLAGE ABSOLU :
     // Les ingrédients sont CONSIDÉRÉS VALIDES.
@@ -141,7 +151,7 @@ FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT :
   "title": "string",
   "ingredients": "string",
   "steps": ["étape 1", "étape 2"],
-  "estimatedMinutes": number,
+  "estimatedMinutes": ${estimatedMinutes},
   "cuisine": "${cuisine}",
   "mode": "strict"
 }
@@ -187,6 +197,11 @@ la réponse est CONSIDÉRÉE COMME INVALIDE.
 
     if (json.status === "refused") {
       return res.status(422).json(json);
+    }
+
+    // 🛡️ Sécurité finale : jamais de minutes nulles
+    if (typeof json.estimatedMinutes !== "number") {
+      json.estimatedMinutes = estimatedMinutes;
     }
 
     return res.status(200).json(json);
