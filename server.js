@@ -1,5 +1,3 @@
-
-
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -38,7 +36,12 @@ app.get("/", (req, res) => {
 // =========================
 app.post("/recipe", async (req, res) => {
   try {
-    const { ingredients, duration } = req.body;
+    const { ingredients, duration, mode, extraIngredients = [] } = req.body;
+    const safeExtraIngredients = Array.isArray(extraIngredients)
+      ? extraIngredients.filter(
+          (e) => typeof e === "string" && e.trim().length > 0
+        )
+      : [];
     const cuisine = (req.body.cuisine && req.body.cuisine.trim().length > 0)
       ? req.body.cuisine.trim()
       : "indienne";
@@ -54,11 +57,16 @@ app.post("/recipe", async (req, res) => {
     }
 
     console.log("📩 BODY REÇU:", { ingredients, duration, cuisine });
+    console.log("➕ EXTRA INGREDIENTS:", safeExtraIngredients);
 
     // ⏱️ Sécurisation de la durée (évite valeurs invalides venant du front)
     const safeDuration = ["rapide", "moyen", "long"].includes(duration)
       ? duration
       : "moyen";
+
+    // 🍽️ Mode de préparation (plat par défaut)
+    const safeMode = mode === "dessert" ? "dessert" : "savory";
+    console.log("🍽️ MODE:", safeMode);
 
     // ⏱️ CONTRAINTE DE DURÉE
     const durationHint = {
@@ -76,59 +84,79 @@ CONTEXTE TECHNIQUE (NON NÉGOCIABLE) :
 Les ingrédients principaux ont DÉJÀ été VALIDÉS par le backend.
 Ils sont considérés comme EXISTANTS, CORRECTS et EXPLOITABLES.
 
-TU N’AS PAS LE DROIT :
-- de dire qu’aucun ingrédient n’a été fourni
-- de demander plus d’ingrédients
-- de remettre en cause leur validité
+MODE DE PRÉPARATION :
+- Mode sélectionné : ${safeMode === "dessert" ? "PÂTISSERIE / SUCRÉ" : "PLAT SALÉ"}
 
 --------------------------------------------------
+RÈGLES COMMUNES (TOUS MODES) :
+
+Tu DOIS utiliser UNIQUEMENT :
+- les ingrédients fournis par l’utilisateur
+- les ingrédients supplémentaires explicitement sélectionnés dans l’interface
+
+Liste des ingrédients supplémentaires AUTORISÉS :
+${safeExtraIngredients.length > 0 ? safeExtraIngredients.join(", ") : "AUCUN"}
+
+AUTORISÉ AUTOMATIQUEMENT :
+- sel
+- poivre
+- toutes les épices sèches (paprika, curry, curcuma, cumin, herbes sèches, thym, laurier, etc.)
+- huile, beurre
+- eau
+- lait
+
+INGRÉDIENTS TECHNIQUES AUTORISÉS (USAGE LIMITÉ) :
+- farine
+- sucre
+
+⚠️ La farine et le sucre sont AUTORISÉS UNIQUEMENT comme ingrédients techniques
+(liaison, panure, texture, équilibre, caramélisation légère).
+Ils NE DOIVENT PAS servir à créer des desserts ou pâtisseries complètes
+SAUF si le mode est explicitement "dessert".
+
+INTERDICTION ABSOLUE (TOUS MODES) :
+- ajouter des ingrédients NON présents dans les listes ci-dessus
+- ajouter des légumes, fruits ou produits frais non explicitement fournis
+- compléter une recette avec des ingrédients "logiques"
+- suggérer ou demander des ingrédients manquants
+
+--------------------------------------------------
+MODE PLAT SALÉ (${safeMode === "savory" ? "ACTIF" : "INACTIF"}) :
 
 Tu es un chef cuisinier professionnel, expert STRICT en cuisine ${cuisine}.
 
-RÈGLES ABSOLUES :
-
-1️⃣ Les ingrédients fournis par l’utilisateur sont les INGRÉDIENTS PRINCIPAUX.
-2️⃣ Tu DOIS ajouter automatiquement les ingrédients de base typiques de la cuisine ${cuisine}
-   (épices, aromates, condiments, huile, sel, etc.).
-3️⃣ Le manque d’épices ou d’aromates N’EST JAMAIS une raison de refus.
-4️⃣ La recette DOIT être authentiquement ${cuisine}.
-5️⃣ La recette DOIT durer ${durationHint}. Ne dépasse JAMAIS cette durée.
-
-🚨 REFUS — CAS EXTRÊMEMENT RARE :
-Tu REFUSES UNIQUEMENT si les ingrédients PRINCIPAUX sont
-fondamentalement incompatibles avec la cuisine ${cuisine},
-MÊME après ajout de TOUTES les bases classiques.
-
-Exemples de REFUS LÉGITIMES :
-- Cuisine japonaise + chocolat + fromage
-- Cuisine indienne + chocolat + fromage
-- Cuisine italienne + algues + wasabi
-
-Exemples OBLIGATOIRES À ACCEPTER :
-- Riz + poulet + cuisine indienne → ✅ ACCEPTER
-- Riz seul + cuisine indienne → ✅ ACCEPTER
-- Poulet seul + cuisine indienne → ✅ ACCEPTER
+RÈGLES SPÉCIFIQUES :
+- La recette DOIT être salée
+- INTERDICTION de créer un dessert ou une pâtisserie
+- La recette DOIT durer ${durationHint}
+- Respect STRICT des ingrédients fournis
 
 --------------------------------------------------
+MODE PÂTISSERIE (${safeMode === "dessert" ? "ACTIF" : "INACTIF"}) :
 
+Tu es un pâtissier professionnel.
+
+RÈGLES SPÉCIFIQUES :
+- La recette DOIT être sucrée
+- Les techniques de pâtisserie sont AUTORISÉES
+- La farine et le sucre peuvent être utilisés librement
+- La recette DOIT rester simple et réalisable avec les ingrédients fournis
+
+--------------------------------------------------
+VARIATION OBLIGATOIRE :
+
+Si une recette a déjà été proposée pour ces ingrédients, ce mode et cette cuisine,
+tu DOIS proposer une recette DIFFÉRENTE.
+
+Tu peux varier :
+- le type de préparation
+- la technique
+- les épices dominantes
+- la texture finale
+
+--------------------------------------------------
 FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT.
 
-SI REFUS :
-{
-  "status": "refused",
-  "title": null,
-  "ingredients": null,
-  "steps": [],
-  "calories": null,
-  "estimatedMinutes": null,
-  "cuisine": "${cuisine}",
-  "suggestion": {
-    "suggestedCuisine": "string",
-    "reason": "string"
-  }
-}
-
-SI OK :
 {
   "status": "ok",
   "title": "string",
@@ -137,30 +165,13 @@ SI OK :
   "calories": number,
   "estimatedMinutes": number,
   "cuisine": "${cuisine}",
+  "mode": "${safeMode}",
   "suggestion": null
 }
 
-VARIATION OBLIGATOIRE :
-
-Si une recette a déjà été proposée pour ces ingrédients et cette cuisine,
-tu DOIS proposer une recette DIFFÉRENTE.
-
-Tu peux varier AU MOINS UN élément :
-- le type de plat (curry, sauté, rôti, mijoté, sec)
-- la technique (masala, jalfrezi, korma, pilaf, etc.)
-- la base de sauce (tomate, oignon, yaourt, crème, coco)
-- les épices dominantes
-
-INTERDICTION ABSOLUE :
-- Ne répète pas systématiquement la même recette.
-- Ne redonne pas une recette identique à la précédente.
-
-Chaque génération doit être différente,
-tout en restant authentiquement ${cuisine}.
-
 RÈGLE FINALE :
-Si les ingrédients principaux sont compatibles avec la cuisine ${cuisine},
-TU N’AS PAS LE DROIT DE REFUSER.
+Si les ingrédients principaux ET supplémentaires fournis sont compatibles avec le mode sélectionné,
+TU DOIS générer une recette STRICTE sans aucun ingrédient ajouté.
 `;
 
     const response = await client.responses.create({
@@ -172,28 +183,28 @@ TU N’AS PAS LE DROIT DE REFUSER.
       }
     });
 
-// 🛡️ PARSING ULTRA SAFE (Render / OpenAI)
-let json;
+    // 🛡️ PARSING ULTRA SAFE (Render / OpenAI)
+    let json;
 
-try {
-  if (response.output_parsed) {
-    json = response.output_parsed;
-  } else if (
-    response.output &&
-    response.output[0]?.content &&
-    response.output[0].content[0]?.text
-  ) {
-    json = JSON.parse(response.output[0].content[0].text);
-  } else {
-    throw new Error("No parsable OpenAI response");
-  }
-} catch (e) {
-  console.error("❌ OpenAI BAD RESPONSE:", response);
-  return res.status(502).json({
-    error: "OPENAI_BAD_RESPONSE",
-    message: "Invalid AI response format",
-  });
-}
+    try {
+      if (response.output_parsed) {
+        json = response.output_parsed;
+      } else if (
+        response.output &&
+        response.output[0]?.content &&
+        response.output[0].content[0]?.text
+      ) {
+        json = JSON.parse(response.output[0].content[0].text);
+      } else {
+        throw new Error("No parsable OpenAI response");
+      }
+    } catch (e) {
+      console.error("❌ OpenAI BAD RESPONSE:", response);
+      return res.status(502).json({
+        error: "OPENAI_BAD_RESPONSE",
+        message: "Invalid AI response format",
+      });
+    }
 
     if (json.status === "refused") {
       return res.status(422).json(json);
