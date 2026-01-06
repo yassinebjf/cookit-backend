@@ -60,7 +60,15 @@ app.post("/recipe", recipeLimiter, async (req, res) => {
     } = req.body;
 
     const PREMIUM_MODE = isPremium === true;
-    const randomCuisines = ["french", "italian", "japanese", "mediterranean"];
+    const randomCuisines = [
+      "french",
+      "italian",
+      "indian",
+      "mexican",
+      "japanese",
+      "mediterranean",
+      "vegetarian",
+    ];
 
     // Normalisation de la cuisine reçue (front multilingue)
     const rawCuisine =
@@ -79,14 +87,37 @@ app.post("/recipe", recipeLimiter, async (req, res) => {
 
     // Mapping labels UI → codes backend
     const CUISINE_MAP = {
+      // French
       "française": "french",
+      "francais": "french",
       "french": "french",
+
+      // Italian
       "italienne": "italian",
       "italian": "italian",
+
+      // Indian
+      "indienne": "indian",
+      "indian": "indian",
+
+      // Japanese
       "japonaise": "japanese",
       "japanese": "japanese",
+
+      // Mediterranean
       "méditerranéenne": "mediterranean",
+      "mediterraneenne": "mediterranean",
       "mediterranean": "mediterranean",
+
+      // Mexican
+      "mexicaine": "mexican",
+      "mexicain": "mexican",
+      "mexican": "mexican",
+
+      // Vegetarian
+      "végétarienne": "vegetarian",
+      "vegetarienne": "vegetarian",
+      "vegetarian": "vegetarian",
     };
 
     let cuisine;
