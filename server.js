@@ -40,6 +40,74 @@ app.get("/", (req, res) => {
 });
 
 // =========================
+// Privacy policy (required for Google Play submission)
+// =========================
+app.get("/privacy", (req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Politique de confidentialité — Cook'it</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #222; background: #fff; }
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.15rem; margin-top: 2rem; }
+  footer { margin-top: 3rem; font-size: 0.85rem; color: #666; }
+</style>
+</head>
+<body>
+<h1>Politique de confidentialité — Cook'it</h1>
+<p>Dernière mise à jour : 28 juillet 2026</p>
+
+<p>Cook'it ("l'application", "nous") est une application qui génère des recettes de cuisine à partir des ingrédients que vous indiquez. Cette page explique quelles données sont traitées et comment.</p>
+
+<h2>Ce que vous nous envoyez</h2>
+<p>Lorsque vous demandez une recette, le texte des ingrédients que vous tapez ou dictez, ainsi que vos préférences (type de cuisine, durée de préparation), sont envoyés à notre serveur puis transmis à OpenAI pour générer la recette, et à Unsplash pour trouver une photo illustrative correspondant au plat. Nous ne demandons ni ne collectons votre nom, votre adresse e-mail ou toute autre donnée d'identification pour utiliser cette fonctionnalité.</p>
+
+<h2>Micro et dictée vocale</h2>
+<p>Si vous utilisez la dictée vocale, l'audio est traité directement par le service de reconnaissance vocale de votre appareil (Android ou iOS). Nous ne recevons ni ne stockons aucun enregistrement audio.</p>
+
+<h2>Données stockées sur votre appareil</h2>
+<p>Votre historique de recettes, vos favoris et vos points de progression sont enregistrés uniquement en local sur votre appareil. Nous n'avons pas accès à ces données et elles ne sont pas envoyées à nos serveurs.</p>
+
+<h2>Compte et connexion</h2>
+<p>Cook'it fonctionne actuellement en mode invité : aucune création de compte n'est requise et aucune donnée de connexion n'est collectée.</p>
+
+<h2>Publicité</h2>
+<p>Les publicités sont actuellement désactivées dans l'application. Si elles venaient à être activées dans une future mise à jour, cette page sera mise à jour en conséquence avant leur activation.</p>
+
+<h2>Services tiers utilisés</h2>
+<ul>
+  <li><strong>OpenAI</strong> — génération du texte de la recette à partir des ingrédients fournis.</li>
+  <li><strong>Unsplash</strong> — recherche d'une photo générique correspondant au type de plat.</li>
+  <li><strong>Firebase (Google)</strong> — infrastructure technique de l'application.</li>
+</ul>
+<p>Ces services peuvent traiter les données selon leurs propres politiques de confidentialité respectives.</p>
+
+<h2>Permissions de l'application</h2>
+<ul>
+  <li><strong>Microphone</strong> — pour dicter vos ingrédients (traitement local par votre appareil, voir ci-dessus).</li>
+  <li><strong>Internet</strong> — pour générer les recettes et charger les photos.</li>
+  <li><strong>Notifications</strong> — pour vous prévenir quand un minuteur de cuisson est terminé.</li>
+</ul>
+
+<h2>Enfants</h2>
+<p>Cook'it n'est pas destinée aux enfants de moins de 13 ans et ne collecte pas sciemment de données auprès d'eux.</p>
+
+<h2>Modifications</h2>
+<p>Cette politique peut être mise à jour si l'application évolue. La date de dernière mise à jour figure en haut de cette page.</p>
+
+<h2>Contact</h2>
+<p>Pour toute question concernant cette politique, contactez-nous à : <a href="mailto:yassinebjf98@gmail.com">yassinebjf98@gmail.com</a></p>
+
+<footer>Cook'it</footer>
+</body>
+</html>`);
+});
+
+// =========================
 // OpenAI client
 // =========================
 const client = new OpenAI({
