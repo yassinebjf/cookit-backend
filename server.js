@@ -357,6 +357,40 @@ la réponse est CONSIDÉRÉE COMME INVALIDE.
 });
 
 // =========================
+// 🖼️ IMAGE SEARCH (proxy Unsplash — la clé reste côté serveur)
+// =========================
+app.get("/image", recipeLimiter, async (req, res) => {
+  try {
+    const query = typeof req.query.query === "string" ? req.query.query.trim() : "";
+    if (!query) {
+      return res.status(400).json({ error: "NO_QUERY", message: "Missing query" });
+    }
+
+    const unsplashUrl =
+      "https://api.unsplash.com/search/photos" +
+      `?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`;
+
+    const unsplashRes = await fetch(unsplashUrl, {
+      headers: { Authorization: `Client-ID ${process.env.UNSPLASH_ACCESS_KEY}` },
+    });
+
+    if (!unsplashRes.ok) {
+      return res.status(502).json({ error: "UNSPLASH_ERROR" });
+    }
+
+    const data = await unsplashRes.json();
+    const url = data?.results?.[0]?.urls?.regular ?? null;
+
+    return res.status(200).json({ url });
+  } catch (error) {
+    if (IS_DEV) {
+      console.error("❌ /image error:", error);
+    }
+    return res.status(500).json({ error: "IMAGE_ERROR" });
+  }
+});
+
+// =========================
 // START SERVER
 // =========================
 app.listen(PORT, () => {
