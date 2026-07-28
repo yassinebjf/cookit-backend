@@ -434,7 +434,20 @@ app.post("/recipes", recipeLimiter, async (req, res) => {
       duration,
       extraIngredients = [],
       isPremium = false,
+      dietary = null,
     } = req.body;
+
+    const DIET_RULES = {
+      vegetarian:
+        "Le plat doit être VÉGÉTARIEN : aucune viande, volaille, poisson ni fruit de mer, dans aucune des 3 recettes. Si la liste d'ingrédients fournie contient de la viande, du poisson, de la volaille ou des fruits de mer, tu DOIS répondre avec {\"status\": \"refused\", \"reason\": \"...\"} au lieu de générer des recettes.",
+      vegan:
+        "Le plat doit être VÉGANE : aucune viande, volaille, poisson, fruit de mer, produit laitier, œuf ni miel, dans aucune des 3 recettes. Si la liste d'ingrédients fournie contient l'un de ces éléments, tu DOIS répondre avec {\"status\": \"refused\", \"reason\": \"...\"} au lieu de générer des recettes.",
+      gluten_free:
+        "Le plat doit être SANS GLUTEN : pas de blé, orge, seigle, pâtes ou pain classiques, sauce soja classique. Adapte la technique de cuisson si besoin, sans jamais ajouter un ingrédient interdit par les règles ci-dessus.",
+      dairy_free:
+        "Le plat doit être SANS PRODUITS LAITIERS : pas de lait, crème, beurre, fromage ni yaourt. Si la liste d'ingrédients fournie en contient, tu DOIS répondre avec {\"status\": \"refused\", \"reason\": \"...\"} au lieu de générer des recettes.",
+    };
+    const dietaryRule = dietary && DIET_RULES[dietary] ? DIET_RULES[dietary] : null;
 
     const PREMIUM_MODE = isPremium === true;
     const randomCuisines = [
@@ -541,7 +554,12 @@ RÈGLES ABSOLUES (AUCUNE EXCEPTION) :
    - une recette simple et traditionnelle est attendue
    - tu n'as PAS le droit d'inventer des ingrédients
 
---------------------------------------------------
+${dietaryRule ? `--------------------------------------------------
+CONTRAINTE ALIMENTAIRE (OBLIGATOIRE) :
+
+${dietaryRule}
+
+` : ""}--------------------------------------------------
 TU DOIS PRODUIRE EXACTEMENT 3 RECETTES DIFFÉRENTES.
 
 Chaque recette DOIT utiliser une technique de cuisson différente et imposée :
