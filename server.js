@@ -425,6 +425,255 @@ la réponse est CONSIDÉRÉE COMME INVALIDE.
 });
 
 // =========================
+// 🍳🍳🍳 3 RECIPE SUGGESTIONS (carte à swiper)
+// =========================
+app.post("/recipes", recipeLimiter, async (req, res) => {
+  try {
+    const {
+      ingredients,
+      duration,
+      extraIngredients = [],
+      isPremium = false,
+    } = req.body;
+
+    const PREMIUM_MODE = isPremium === true;
+    const randomCuisines = [
+      "french",
+      "italian",
+      "indian",
+      "mexican",
+      "japanese",
+      "mediterranean",
+      "vegetarian",
+    ];
+
+    const rawCuisine =
+      typeof req.body.cuisine === "string"
+        ? req.body.cuisine.trim().toLowerCase()
+        : null;
+
+    const RANDOM_KEYS = [
+      "random",
+      "aleatoire",
+      "aléatoire",
+      "choisis un type de cuisine",
+      ""
+    ];
+
+    const CUISINE_MAP = {
+      "française": "french", "francais": "french", "french": "french",
+      "italienne": "italian", "italian": "italian",
+      "indienne": "indian", "indian": "indian",
+      "japonaise": "japanese", "japanese": "japanese",
+      "méditerranéenne": "mediterranean", "mediterraneenne": "mediterranean", "mediterranean": "mediterranean",
+      "mexicaine": "mexican", "mexicain": "mexican", "mexican": "mexican",
+      "végétarienne": "vegetarian", "vegetarienne": "vegetarian", "vegetarian": "vegetarian",
+    };
+
+    let cuisine;
+    if (!rawCuisine || RANDOM_KEYS.includes(rawCuisine)) {
+      cuisine = randomCuisines[Math.floor(Math.random() * randomCuisines.length)];
+    } else if (CUISINE_MAP[rawCuisine]) {
+      cuisine = CUISINE_MAP[rawCuisine];
+    } else {
+      cuisine = randomCuisines[Math.floor(Math.random() * randomCuisines.length)];
+    }
+
+    if (!ingredients || ingredients.trim().length === 0) {
+      return res.status(400).json({ error: "NO_INGREDIENTS", message: "No ingredients provided" });
+    }
+
+    if (!duration || !["rapide", "moyen", "long"].includes(duration)) {
+      return res.status(400).json({ error: "INVALID_DURATION", message: "Duration must be 'rapide', 'moyen' or 'long'" });
+    }
+
+    const safeDuration = duration;
+    const durationHint = {
+      rapide: "15 minutes maximum",
+      moyen: "entre 30 et 40 minutes",
+      long: "60 minutes ou plus",
+    }[safeDuration];
+
+    const estimatedMinutes =
+      safeDuration === "rapide" ? 10 :
+      safeDuration === "moyen" ? 30 :
+      60;
+
+    const aiConfig = PREMIUM_MODE
+      ? { model: "gpt-4.1", temperature: 0.5, timeoutMs: 45_000 }
+      : { model: "gpt-4.1-mini", temperature: 0.7, timeoutMs: 35_000 };
+
+    const prompt = `
+MODE STRICT — OBLIGATOIRE
+
+Tu es dans un mode de CONTRAINTE ABSOLUE.
+Ce n'est PAS une tâche créative libre.
+Tu dois STRICTEMENT respecter les règles ci-dessous.
+
+--------------------------------------------------
+LISTE DES INGRÉDIENTS AUTORISÉS (LISTE FERMÉE) :
+
+${ingredients}
+
+--------------------------------------------------
+RÈGLES ABSOLUES (AUCUNE EXCEPTION) :
+
+1. Tu DOIS utiliser UNIQUEMENT les ingrédients listés ci-dessus.
+2. Tu ES STRICTEMENT INTERDIT d'ajouter :
+   - viande
+   - poisson
+   - volaille
+   - fruits de mer
+   - légumes
+   - fruits
+   - produits laitiers
+   - tout ingrédient non listé explicitement
+
+3. Tu ES AUTORISÉ à ajouter UNIQUEMENT :
+   - sel
+   - poivre
+   - épices sèches (en lien avec la cuisine choisie)
+   - huile ou matière grasse
+   - liquides techniques : eau, vinaigre, sauce soja, vin
+
+4. Si la liste d'ingrédients est très courte :
+   - tu DOIS quand même produire un plat valide pour chacune des 3 recettes
+   - une recette simple et traditionnelle est attendue
+   - tu n'as PAS le droit d'inventer des ingrédients
+
+--------------------------------------------------
+TU DOIS PRODUIRE EXACTEMENT 3 RECETTES DIFFÉRENTES.
+
+Chaque recette DOIT utiliser une technique de cuisson différente et imposée :
+- Recette 1 : technique "four / rôti"
+- Recette 2 : technique "poêle / sauté"
+- Recette 3 : technique "mijoté / bouilli / vapeur" (ou un plat froid type salade si les ingrédients ne se prêtent pas à la cuisson)
+
+Les 3 recettes doivent avoir des titres clairement différents et ne pas être de simples variantes l'une de l'autre.
+
+--------------------------------------------------
+STYLE DE CUISINE :
+
+Cuisine sélectionnée : ${cuisine || "basée ingrédients"}
+
+La cuisine influence UNIQUEMENT :
+- les épices
+- la technique
+- le nom du plat
+
+Elle NE DOIT JAMAIS introduire de nouveaux ingrédients.
+
+--------------------------------------------------
+CONTRAINTE DE DURÉE :
+
+Chaque recette DOIT durer : ${durationHint}
+
+--------------------------------------------------
+FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT :
+
+{
+  "status": "ok",
+  "recipes": [
+    {
+      "title": "string",
+      "technique": "four" | "poele" | "mijote",
+      "ingredients": "string",
+      "steps": ["étape 1", "étape 2"],
+      "estimatedMinutes": ${estimatedMinutes},
+      "caloriesKcal": number (estimation réaliste basée sur les ingrédients et quantités),
+      "cuisine": "${cuisine}",
+      "mode": "strict"
+    }
+  ]
+}
+
+Le tableau "recipes" doit contenir EXACTEMENT 3 éléments, dans l'ordre four / poêle / mijoté.
+
+--------------------------------------------------
+RÈGLE CALORIES (OBLIGATOIRE) :
+
+- Tu DOIS estimer les calories à partir des ingrédients réellement utilisés, pour CHAQUE recette
+- Utilise des portions réalistes (ex: 1 œuf ≈ 70 kcal)
+- L'estimation doit être cohérente avec la recette (±20% accepté)
+- Tu N'AS PAS le droit d'inventer des calories arbitraires
+
+--------------------------------------------------
+RÈGLE FINALE :
+
+Si TU AJOUTES un ingrédient non autorisé, ou si tu ne produis pas exactement 3 recettes différentes,
+la réponse est CONSIDÉRÉE COMME INVALIDE.
+`;
+
+    const response = await Promise.race([
+      client.responses.create({
+        model: aiConfig.model,
+        input: prompt,
+        temperature: aiConfig.temperature,
+        text: { format: { type: "json_object" } },
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("OPENAI_TIMEOUT")), aiConfig.timeoutMs)
+      ),
+    ]);
+
+    let json;
+    try {
+      if (response.output_parsed) {
+        json = response.output_parsed;
+      } else if (
+        response.output &&
+        response.output[0]?.content &&
+        response.output[0].content[0]?.text
+      ) {
+        json = JSON.parse(response.output[0].content[0].text);
+      } else {
+        throw new Error("No parsable OpenAI response");
+      }
+    } catch (e) {
+      if (IS_DEV) console.error("❌ OpenAI BAD RESPONSE:", response);
+      return res.status(502).json({ error: "OPENAI_BAD_RESPONSE", message: "Invalid AI response format" });
+    }
+
+    if (json.status === "refused") {
+      return res.status(422).json(json);
+    }
+
+    if (!Array.isArray(json.recipes) || json.recipes.length === 0) {
+      return res.status(502).json({ error: "INVALID_RECIPES", message: "AI did not return a recipes array" });
+    }
+
+    // 🛡️ Validation + normalisation de chaque recette
+    for (const recipe of json.recipes) {
+      if (typeof recipe.caloriesKcal !== "number" || recipe.caloriesKcal <= 0) {
+        return res.status(502).json({ error: "INVALID_CALORIES", message: "AI did not return valid calorie estimation" });
+      }
+      recipe.caloriesKcal = Math.round(recipe.caloriesKcal);
+      if (typeof recipe.estimatedMinutes !== "number") {
+        recipe.estimatedMinutes = estimatedMinutes;
+      }
+    }
+
+    // 🛡️ Anti-doublon : titres normalisés trop proches -> on garde quand même
+    // mais on log côté serveur pour surveiller la qualité du prompt dans le temps.
+    const normalizedTitles = json.recipes.map((r) =>
+      (r.title || "").toLowerCase().trim()
+    );
+    const uniqueTitles = new Set(normalizedTitles);
+    if (uniqueTitles.size < normalizedTitles.length && IS_DEV) {
+      console.warn("⚠️ Titres de recettes potentiellement dupliqués:", normalizedTitles);
+    }
+
+    return res.status(200).json(json);
+  } catch (error) {
+    if (IS_DEV) console.error("❌ /recipes error:", error);
+    if (error.message === "OPENAI_TIMEOUT") {
+      return res.status(504).json({ error: "OPENAI_TIMEOUT", message: "AI response took too long, please retry" });
+    }
+    return res.status(500).json({ error: "AI_ERROR", message: error.message || "Failed to generate recipes" });
+  }
+});
+
+// =========================
 // 🖼️ IMAGE SEARCH (proxy Unsplash — la clé reste côté serveur)
 // =========================
 app.get("/image", recipeLimiter, async (req, res) => {
