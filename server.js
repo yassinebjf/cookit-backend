@@ -170,10 +170,13 @@ app.post("/recipe", recipeLimiter, deviceDailyLimiter, async (req, res) => {
       duration,
       mode,
       extraIngredients = [],
-      isPremium = false,
     } = req.body;
 
-    const PREMIUM_MODE = isPremium === true;
+    // 🔒 Pas de vrai système d'abonnement pour l'instant : on n'a AUCUNE
+    // raison de faire confiance à un champ envoyé par le client pour
+    // décider quel modèle IA (donc quel coût) utiliser. Codé en dur à
+    // false jusqu'à ce qu'un vrai statut premium existe côté serveur.
+    const PREMIUM_MODE = false;
     const randomCuisines = [
       "french",
       "italian",
@@ -479,9 +482,12 @@ app.post("/recipes", recipeLimiter, deviceDailyLimiter, async (req, res) => {
       ingredients,
       duration,
       extraIngredients = [],
-      isPremium = false,
       dietary = null,
     } = req.body;
+
+    // 🔒 Même raisonnement que sur /recipe : pas de vrai abonnement
+    // aujourd'hui, donc pas de confiance dans un champ client pour le coût.
+    const PREMIUM_MODE = false;
 
     const DIET_RULES = {
       vegetarian:
@@ -495,7 +501,6 @@ app.post("/recipes", recipeLimiter, deviceDailyLimiter, async (req, res) => {
     };
     const dietaryRule = dietary && DIET_RULES[dietary] ? DIET_RULES[dietary] : null;
 
-    const PREMIUM_MODE = isPremium === true;
     const randomCuisines = [
       "french",
       "italian",
