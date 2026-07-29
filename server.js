@@ -304,8 +304,9 @@ MODE PREMIUM ACTIVÉ
           extraPrompt: "",
         };
     // 🚨 VERROUILLAGE ABSOLU :
-    // Les ingrédients sont CONSIDÉRÉS VALIDES.
-    // L’IA n’a PAS le droit de discuter ce point.
+    // Les ingrédients listés sont CONSIDÉRÉS VALIDES pour composer la
+    // recette (l'IA ne discute pas ce point) — mais la liste elle-même
+    // doit d'abord être de vrais ingrédients, voir VALIDATION D'ENTRÉE.
     const prompt = `
 ${aiConfig.extraPrompt}
 MODE STRICT — OBLIGATOIRE
@@ -318,6 +319,18 @@ Tu dois STRICTEMENT respecter les règles ci-dessous.
 LISTE DES INGRÉDIENTS AUTORISÉS (LISTE FERMÉE) :
 
 ${ingredients}
+
+--------------------------------------------------
+VALIDATION D'ENTRÉE (PRIORITAIRE, AVANT TOUTE AUTRE RÈGLE) :
+
+Si la liste ci-dessus ne contient PAS de vrais ingrédients alimentaires
+reconnaissables — mots inventés, charabia, insultes, excréments/fluides
+corporels, contenu vulgaire ou choquant, sujet non alimentaire, texte
+au hasard — tu DOIS répondre UNIQUEMENT avec :
+{"status": "refused", "reason": "..."}
+(reason = une phrase courte, polie, en français, expliquant qu'il faut
+indiquer de vrais ingrédients) et NE PRODUIRE AUCUNE RECETTE.
+Dans le doute (ex: ingrédient rare mais réel), ne refuse PAS.
 
 --------------------------------------------------
 RÈGLES ABSOLUES (AUCUNE EXCEPTION) :
@@ -578,6 +591,18 @@ Tu dois STRICTEMENT respecter les règles ci-dessous.
 LISTE DES INGRÉDIENTS AUTORISÉS (LISTE FERMÉE) :
 
 ${ingredients}
+
+--------------------------------------------------
+VALIDATION D'ENTRÉE (PRIORITAIRE, AVANT TOUTE AUTRE RÈGLE) :
+
+Si la liste ci-dessus ne contient PAS de vrais ingrédients alimentaires
+reconnaissables — mots inventés, charabia, insultes, excréments/fluides
+corporels, contenu vulgaire ou choquant, sujet non alimentaire, texte
+au hasard — tu DOIS répondre UNIQUEMENT avec :
+{"status": "refused", "reason": "..."}
+(reason = une phrase courte, polie, en français, expliquant qu'il faut
+indiquer de vrais ingrédients) et NE PRODUIRE AUCUNE RECETTE.
+Dans le doute (ex: ingrédient rare mais réel), ne refuse PAS.
 
 --------------------------------------------------
 RÈGLES ABSOLUES (AUCUNE EXCEPTION) :
