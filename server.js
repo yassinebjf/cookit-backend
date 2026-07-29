@@ -24,6 +24,52 @@ const recipeLimiter = rateLimit({
 });
 
 // =========================
+// 📵 Daily per-device cap (abuse protection against runaway/bot usage,
+// not a defense against normal cost — see cookit_product_decisions memory)
+// =========================
+const DAILY_RECIPE_LIMIT = 5;
+const dailyUsage = new Map(); // deviceId -> { count, resetAt }
+
+function deviceDailyLimiter(req, res, next) {
+  const deviceId =
+    typeof req.body?.deviceId === "string" ? req.body.deviceId.trim() : "";
+
+  if (!deviceId) {
+    return res.status(400).json({
+      error: "MISSING_DEVICE_ID",
+      message: "deviceId is required",
+    });
+  }
+
+  const now = Date.now();
+  let entry = dailyUsage.get(deviceId);
+  if (!entry || now >= entry.resetAt) {
+    entry = { count: 0, resetAt: now + 24 * 60 * 60 * 1000 };
+  }
+
+  if (entry.count >= DAILY_RECIPE_LIMIT) {
+    dailyUsage.set(deviceId, entry);
+    return res.status(429).json({
+      error: "DAILY_LIMIT_REACHED",
+      message: `Daily limit of ${DAILY_RECIPE_LIMIT} recipe generations reached`,
+      resetAt: new Date(entry.resetAt).toISOString(),
+    });
+  }
+
+  entry.count += 1;
+  dailyUsage.set(deviceId, entry);
+  next();
+}
+
+// Évite une fuite mémoire lente : purge les entrées expirées chaque heure.
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, entry] of dailyUsage) {
+    if (now >= entry.resetAt) dailyUsage.delete(id);
+  }
+}, 60 * 60 * 1000).unref();
+
+// =========================
 // Health check
 // =========================
 const START_TIME = Date.now();
@@ -117,7 +163,7 @@ const client = new OpenAI({
 // =========================
 // 🍳 RECIPE GENERATION
 // =========================
-app.post("/recipe", recipeLimiter, async (req, res) => {
+app.post("/recipe", recipeLimiter, deviceDailyLimiter, async (req, res) => {
   try {
     const {
       ingredients,
@@ -427,7 +473,7 @@ la réponse est CONSIDÉRÉE COMME INVALIDE.
 // =========================
 // 🍳🍳🍳 3 RECIPE SUGGESTIONS (carte à swiper)
 // =========================
-app.post("/recipes", recipeLimiter, async (req, res) => {
+app.post("/recipes", recipeLimiter, deviceDailyLimiter, async (req, res) => {
   try {
     const {
       ingredients,
