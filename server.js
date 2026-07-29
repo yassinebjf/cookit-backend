@@ -11,6 +11,38 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 
 // =========================
+// 🌐 Langue de sortie des recettes (indépendante des champs techniques
+// fixes comme "technique" et "cuisine", qui restent en anglais/valeurs
+// canoniques — c'est le client Flutter qui les traduit à l'affichage)
+// =========================
+const LANGUAGE_NAMES = {
+  fr: "français",
+  en: "English",
+  ar: "العربية (Arabic)",
+  zh: "中文 (Chinese)",
+  de: "Deutsch (German)",
+  es: "español (Spanish)",
+  tr: "Türkçe (Turkish)",
+};
+
+function languageInstruction(languageCode) {
+  const name = LANGUAGE_NAMES[languageCode] || LANGUAGE_NAMES.fr;
+  return `
+--------------------------------------------------
+LANGUE DE SORTIE (OBLIGATOIRE) :
+
+Tout le texte libre lisible par l'utilisateur (title, ingredients,
+steps, reason en cas de refus) DOIT être rédigé en ${name}.
+
+Exception stricte : les champs "technique" et "cuisine" du JSON de
+réponse ne sont JAMAIS traduits — ils DOIVENT rester exactement l'une
+des valeurs fixes indiquées dans le format de réponse ci-dessous (ex:
+"four", "poele", "mijote", "french", "italian"...), quelle que soit
+la langue de sortie choisie.
+`;
+}
+
+// =========================
 // Middlewares
 // =========================
 app.use(cors());
@@ -170,6 +202,7 @@ app.post("/recipe", recipeLimiter, deviceDailyLimiter, async (req, res) => {
       duration,
       mode,
       extraIngredients = [],
+      language = "fr",
     } = req.body;
 
     // 🔒 Pas de vrai système d'abonnement pour l'instant : on n'a AUCUNE
@@ -328,7 +361,8 @@ reconnaissables — mots inventés, charabia, insultes, excréments/fluides
 corporels, contenu vulgaire ou choquant, sujet non alimentaire, texte
 au hasard — tu DOIS répondre UNIQUEMENT avec :
 {"status": "refused", "reason": "..."}
-(reason = une phrase courte, polie, en français, expliquant qu'il faut
+(reason = une phrase courte et polie, DANS LA LANGUE DE SORTIE demandée
+plus bas dans ce message, expliquant qu'il faut
 indiquer de vrais ingrédients) et NE PRODUIRE AUCUNE RECETTE.
 Dans le doute (ex: ingrédient rare mais réel), ne refuse PAS.
 
@@ -374,7 +408,7 @@ Elle NE DOIT JAMAIS introduire de nouveaux ingrédients.
 CONTRAINTE DE DURÉE :
 
 La recette DOIT durer : ${durationHint}
-
+${languageInstruction(language)}
 --------------------------------------------------
 FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT :
 
@@ -496,6 +530,7 @@ app.post("/recipes", recipeLimiter, deviceDailyLimiter, async (req, res) => {
       duration,
       extraIngredients = [],
       dietary = null,
+      language = "fr",
     } = req.body;
 
     // 🔒 Même raisonnement que sur /recipe : pas de vrai abonnement
@@ -600,7 +635,8 @@ reconnaissables — mots inventés, charabia, insultes, excréments/fluides
 corporels, contenu vulgaire ou choquant, sujet non alimentaire, texte
 au hasard — tu DOIS répondre UNIQUEMENT avec :
 {"status": "refused", "reason": "..."}
-(reason = une phrase courte, polie, en français, expliquant qu'il faut
+(reason = une phrase courte et polie, DANS LA LANGUE DE SORTIE demandée
+plus bas dans ce message, expliquant qu'il faut
 indiquer de vrais ingrédients) et NE PRODUIRE AUCUNE RECETTE.
 Dans le doute (ex: ingrédient rare mais réel), ne refuse PAS.
 
@@ -661,7 +697,7 @@ Elle NE DOIT JAMAIS introduire de nouveaux ingrédients.
 CONTRAINTE DE DURÉE :
 
 Chaque recette DOIT durer : ${durationHint}
-
+${languageInstruction(language)}
 --------------------------------------------------
 FORMAT DE RÉPONSE — JSON STRICT UNIQUEMENT :
 
