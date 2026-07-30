@@ -413,6 +413,11 @@ RÈGLES ABSOLUES (AUCUNE EXCEPTION) :
    - huile ou matière grasse
    - liquides techniques : eau, vinaigre, sauce soja, vin
 
+RÈGLE D'AFFICHAGE : l'eau ne doit JAMAIS apparaître dans le champ
+"ingredients" de la réponse. On s'en sert dans les étapes ("ajouter un
+verre d'eau"), mais la lister comme ingrédient n'a pas de sens : elle
+sort du robinet. Idem pour la glace.
+
 4. Si la liste d’ingrédients est très courte :
    - tu DOIS quand même produire un plat valide
    - une recette simple et traditionnelle est attendue
@@ -712,6 +717,11 @@ RÈGLES ABSOLUES (AUCUNE EXCEPTION) :
    - épices sèches (en lien avec la cuisine choisie)
    - huile ou matière grasse
    - liquides techniques : eau, vinaigre, sauce soja, vin
+
+RÈGLE D'AFFICHAGE : l'eau ne doit JAMAIS apparaître dans le champ
+"ingredients" de la réponse. On s'en sert dans les étapes ("ajouter un
+verre d'eau"), mais la lister comme ingrédient n'a pas de sens : elle
+sort du robinet. Idem pour la glace.
 
 4. Si la liste d'ingrédients est très courte :
    - tu DOIS quand même produire un plat valide pour chacune des 3 recettes
